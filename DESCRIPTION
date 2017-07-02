@@ -1,0 +1,13 @@
+Package: gumbelRegression
+Type: Package
+Title: Implement Functions for Fitting Gumbel Regression
+Version: 0.1.0
+Author: Wush Wu
+Maintainer: Wush Wu <wush978@gmail.com>
+Description: Implement Functions for Fitting Gumbel Regression
+License: GPL(>= 3)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
+Suggests: reliaR, Deriv, numDeriv, knitr, rmarkdown
+VignetteBuilder: knitr
