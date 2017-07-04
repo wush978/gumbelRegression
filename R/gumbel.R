@@ -5,7 +5,7 @@
     mu <- X %*% w1
     if (isS4(mu)) mu <- mu@x
     z <- (y - mu) / sigma
-    - sum(-(z + exp(-z)) - log(sigma))
+    sum(z + exp(-z) + log(sigma))
   }
 }
 
