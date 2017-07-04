@@ -1,34 +1,81 @@
 ---
 title: "Gumbel Regression"
-author: "Wush Wu"
-date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
+  %\VignetteIndexEntry{Gumbel Regression}
   %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteIndexEntry{Vignette Title}
-  %\VignetteEncoding{UTF-8}
-------
+  \usepackage[utf8]{inputenc}
+---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+The CDF of Gumbel Distribution with location parameter $mu$ and scale parameter $\sigma$ is:
 
-## R Markdown
+$$F(x | \mu, \sigma) = \frac{1}{\sigma} e^{-(z + e^{-z})}$$
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+where $z = \frac{x - \mu}{\sigma}$.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+In addition, we set $s = log(\sigma)$ so that $s \in \mathbb{R}$.
 
-```{r cars}
-summary(cars)
-```
+The implemented Gumbel Regression is:
 
-## Including Plots
+$$y \approx Gumbel(\mu = x_i^T \beta, \sigma = e^s)$$
 
-You can also embed plots, for example:
+Therefore, the loss function which is the negative log likelihood function:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+$$\begin{eqnarray}
+L(s, \beta) &=& \sum_{i=1}^n{z_i + e^{-z_i} + s} \\
+&=& ns + \sum_{i=1}^n{z_i + e^{-z_i}} \\
+&=& ns + \sum_{i=1}^n L'(z_i)
+\end{eqnarray}$$
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+where:
+
+- $n$ is the sample size
+- $z_i = \frac{y_i - x_i^T \beta}{e^s}$
+
+In the returned function from `get.loss`, `get.gradient` and `get.Hv`,
+there is a parameter `w` which is $(s, \beta)$.
+
+## Helper Derivatives
+
+$$\begin{eqnarray}
+\frac{\partial}{\partial s}z_i = -z_i
+\end{eqnarray}$$
+
+$$\begin{eqnarray}
+\frac{\partial}{\partial \beta}z_i = - \frac{x_i}{e^s}
+\end{eqnarray}$$
+
+$$\begin{eqnarray}
+\frac{\partial}{\partial z_i}L'(z_i) = 1 - e^{-z_i}
+\end{eqnarray}$$
+
+## Gradient
+
+$$\begin{eqnarray}
+\frac{\partial}{\partial s}L &=& n + \sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial s}} \\ 
+&=& n + \sum_{i=1}^n{(1 - e^{-z_i}) \times (-z_i)}
+&=& n + \sum_{i=1}^n{z_i e^{-z_i} - z_i}
+\end{eqnarray}$$
+
+$$\begin{eqnarray}
+\frac{\partial}{\partial \beta}L &=& \sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial \beta}} \\ 
+&=& \sum_{i=1}^n {(1 - e^{-z_i}) \times \frac{-x_i}{e^s}} \\
+&=& \sum_{i=1}^n {\frac{e^{-z_i} - 1}{e^s} x_i}
+\end{eqnarray}$$
+
+## Hessian
+
+$$\begin{eqnarray}
+\frac{\partial^2}{\partial s^2}L &=& \sum_{i=1}^n{\frac{\partial}{\partial s}(z_i e^{-z_i} - z_i)} \\
+&=& \sum_{i=1}^n{ z_i^2 e^{-z_i} - z_i e^{-z_i} + z_i}
+\end{eqnarray}$$
+
+$$\begin{eqnarray}
+\frac{\partial^2}{\partial s \partial \beta}L &=& \sum_{i=1}^n{\frac{\partial}{\partial \beta}(z_i e^{-z_i} - z_i)} \\
+&=& \sum_{i=1}^n {\frac{z_i e^{-z_i} - e^{-z_i} +1}{e^s} x_i}
+\end{eqnarray}$$
+
+$$\begin{eqnarray}
+\frac{\partial^2}{\partial \beta^2}L &=& \sum_{i=1}^n{\frac{\partial}{\partial \beta}(\frac{e^{-z_i} - 1}{e^s} x_i)} \\
+&=& \sum_{i=1}^n {}
+\end{eqnarray}$$
