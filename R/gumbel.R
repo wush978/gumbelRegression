@@ -1,11 +1,17 @@
+.extract.w <- function(w) {
+  sigma <- exp(w[1])
+  w1 <- tail(w, -1)
+  mu <- (X %*% w1)
+  if (isS4(mu)) mu <- mu@x
+  mu <- as.vector(mu)
+  z <- as.vector((y - mu) / sigma)
+  list(sigma = sigma, mu = mu, z = z)
+}
+
 .get.loss.r <- function(X, y) {
   function(w) {
-    sigma <- exp(w[1])
-    w1 <- tail(w, -1)
-    mu <- X %*% w1
-    if (isS4(mu)) mu <- mu@x
-    z <- (y - mu) / sigma
-    sum(z + exp(-z) + log(sigma))
+    .w <- .extract.w(w)
+    sum(.w$z + exp(-.w$z) + log(.w$sigma))
   }
 }
 
@@ -29,16 +35,12 @@ get.loss <- function(X, y, implementation = c("r", "cpp")) {
 .get.gradient.r <- function(X, y) {
   n <- nrow(X)
   function(w) {
-    sigma <- exp(w[1])
-    w1 <- tail(w, -1)
-    mu <- (X %*% w1)
-    if (isS4(mu)) mu <- mu@x
-    z <- (y - mu) / sigma
-    .z <- (as.vector(exp(-z) - 1) %*% X)
+    .w <- .extract.w(w)
+    .z <- (as.vector(exp(-.w$z) - 1) %*% X)
     if (isS4(.z)) .z <- .z@x
     c(
-      n + sum(z * (exp(-z) - 1)),
-      .z / sigma
+      n + sum(.w$z * (exp(-.w$z) - 1)),
+      .z / .w$sigma
     )
   }
 }
@@ -61,7 +63,23 @@ get.gradient <- function(X, y, implementation = c("r", "cpp")) {
 }
 
 .get.Hv.r <- function(X, y) {
-
+  .w <- .extract.w(w)
+  .e.z <- exp(-.w$z)
+  H11 <- sum((.w$z^2 - .w$z) * .e.z + .w$z)
+  H1n <- (((.w$z - 1) * .e.z + 1) / .w$sigma) %*% X
+  Hnn <- .e.z / .w$sigma^2
+  if (isS4(H1n)) H1n <- H1n@x
+  function(w, v) {
+    v1 <- tail(v, -1)
+    Xv1 <- X %*% v1
+    if (isS4(Xv1)) Xv1 <- Xv1@x
+    XXv1 <- (as.vector(Xv1) * Hnn) %*% X
+    if (isS4(XXv1)) XXv1 <- XXv1@x
+    c(
+      H11 * v[1] + sum(H1n * v1),
+      H1n * v[1] + XXv1
+    )
+  }
 }
 
 #'@title Get the Hessian-Vector Multiplication Function of Gumbel Regression Given the Response and Covariates
