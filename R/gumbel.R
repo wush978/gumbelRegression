@@ -63,13 +63,13 @@ get.gradient <- function(X, y, implementation = c("r", "cpp")) {
 }
 
 .get.Hv.r <- function(X, y) {
-  .w <- .extract.w(w)
-  .e.z <- exp(-.w$z)
-  H11 <- sum((.w$z^2 - .w$z) * .e.z + .w$z)
-  H1n <- (((.w$z - 1) * .e.z + 1) / .w$sigma) %*% X
-  Hnn <- .e.z / .w$sigma^2
-  if (isS4(H1n)) H1n <- H1n@x
   function(w, v) {
+    .w <- .extract.w(w)
+    .e.z <- exp(-.w$z)
+    H11 <- sum((.w$z^2 - .w$z) * .e.z + .w$z)
+    H1n <- (((.w$z - 1) * .e.z + 1) / .w$sigma) %*% X
+    Hnn <- .e.z / .w$sigma^2
+    if (isS4(H1n)) H1n <- H1n@x
     v1 <- tail(v, -1)
     Xv1 <- X %*% v1
     if (isS4(Xv1)) Xv1 <- Xv1@x
