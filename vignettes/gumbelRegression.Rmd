@@ -77,5 +77,5 @@ $$\begin{eqnarray}
 
 $$\begin{eqnarray}
 \frac{\partial^2}{\partial \beta^2}L &=& \sum_{i=1}^n{\frac{\partial}{\partial \beta}(\frac{e^{-z_i} - 1}{e^s} x_i)} \\
-&=& \sum_{i=1}^n {}
+&=& \sum_{i=1}^n {\frac{e^{-z_i}}{e^{2s}} x_i x_i^T}
 \end{eqnarray}$$
