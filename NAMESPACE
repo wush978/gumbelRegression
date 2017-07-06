@@ -3,3 +3,4 @@
 export(get.Hv)
 export(get.gradient)
 export(get.loss)
+export(get.moment)

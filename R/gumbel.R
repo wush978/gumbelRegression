@@ -1,10 +1,11 @@
-#'@title Moment Estimator of Gumbel Distribution 
+#'@title Moment Estimator of Gumbel Distribution
 #'@param y numeric vector.
 #'@return A list with following elements:
 #'\itemize{
 #'  \item mu. The location parameter.
 #'  \item sigma. The scale parameter.
 #'}
+#'@export
 get.moment <- function(y) {
   sigma <- sqrt(6 * var(y)) / pi
   mu <- mean(y) + digamma(1) * sigma
