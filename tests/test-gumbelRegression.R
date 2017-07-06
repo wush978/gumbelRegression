@@ -29,6 +29,7 @@ test <- function(X, y) {
     }
   }
 }
+options("gumbelRegression.implementation" = "r")
 test(X, y)
 if (isNamespaceLoaded("Xv")) unloadNamespace("Xv")
 library(Matrix)

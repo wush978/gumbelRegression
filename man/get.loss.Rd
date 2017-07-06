@@ -4,7 +4,8 @@
 \alias{get.loss}
 \title{Get the Loss Function of Gumbel Regression Given the Response and Covariates}
 \usage{
-get.loss(X, y, implementation = c("r", "cpp"))
+get.loss(X, y, implementation = getOption("gumbelRegression.implementation",
+  "r"))
 }
 \arguments{
 \item{X}{matrix. The covariates.}

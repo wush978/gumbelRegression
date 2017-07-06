@@ -4,7 +4,8 @@
 \alias{get.Hv}
 \title{Get the Hessian-Vector Multiplication Function of Gumbel Regression Given the Response and Covariates}
 \usage{
-get.Hv(X, y, implementation = c("r", "cpp"))
+get.Hv(X, y, implementation = getOption("gumbelRegression.implementation",
+  "r"))
 }
 \arguments{
 \item{X}{matrix. The covariates.}

@@ -4,7 +4,8 @@
 \alias{get.gradient}
 \title{Get the Gradient of the Loss Function of Gumbel Regression Given the Response and Covariates}
 \usage{
-get.gradient(X, y, implementation = c("r", "cpp"))
+get.gradient(X, y,
+  implementation = getOption("gumbelRegression.implementation", "r"))
 }
 \arguments{
 \item{X}{matrix. The covariates.}

@@ -1,3 +1,16 @@
+#'@title Moment Estimator of Gumbel Distribution 
+#'@param y numeric vector.
+#'@return A list with following elements:
+#'\itemize{
+#'  \item mu. The location parameter.
+#'  \item sigma. The scale parameter.
+#'}
+get.moment <- function(y) {
+  sigma <- sqrt(6 * var(y)) / pi
+  mu <- mean(y) + digamma(1) * sigma
+  list(mu = mu, sigma = sigma)
+}
+
 .extract.w <- function(w) {
   sigma <- exp(w[1])
   w1 <- tail(w, -1)
@@ -23,7 +36,7 @@
 #'The first element of \code{w} is the log of scale parameter of gumbel distribution.
 #'The other elements are regression coefficients.
 #'@export
-get.loss <- function(X, y, implementation = c("r", "cpp")) {
+get.loss <- function(X, y, implementation = getOption("gumbelRegression.implementation", "r")) {
   switch(
     implementation[1],
     "r" = .get.loss.r(X, y),
@@ -53,7 +66,7 @@ get.loss <- function(X, y, implementation = c("r", "cpp")) {
 #'The first element of \code{w} is the log of scale parameter of gumbel distribution.
 #'The other elements are regression coefficients.
 #'@export
-get.gradient <- function(X, y, implementation = c("r", "cpp")) {
+get.gradient <- function(X, y, implementation = getOption("gumbelRegression.implementation", "r")) {
   switch(
     implementation[1],
     "r" = .get.gradient.r(X, y),
@@ -91,7 +104,7 @@ get.gradient <- function(X, y, implementation = c("r", "cpp")) {
 #'The other elements are regression coefficients.
 #'The \code{s} is the vector which will be multiplied by the hessian.
 #'@export
-get.Hv <- function(X, y, implementation = c("r", "cpp")) {
+get.Hv <- function(X, y, implementation = getOption("gumbelRegression.implementation", "r")) {
   switch(
     implementation[1],
     "r" = .get.Hv.r(X, y),
