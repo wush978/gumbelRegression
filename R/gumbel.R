@@ -12,7 +12,7 @@ get.moment <- function(y) {
   list(mu = mu, sigma = sigma)
 }
 
-.extract.w <- function(w) {
+.extract.w <- function(X, y, w) {
   sigma <- exp(w[1])
   w1 <- tail(w, -1)
   mu <- (X %*% w1)
@@ -26,7 +26,7 @@ get.moment <- function(y) {
   force(X)
   force(y)
   function(w) {
-    .w <- .extract.w(w)
+    .w <- .extract.w(X, y, w)
     sum(.w$z + exp(-.w$z) + log(.w$sigma))
   }
 }
@@ -53,7 +53,7 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
   force(y)
   n <- nrow(X)
   function(w) {
-    .w <- .extract.w(w)
+    .w <- .extract.w(X, y, w)
     .z <- (as.vector(exp(-.w$z) - 1) %*% X)
     if (isS4(.z)) .z <- .z@x
     c(
@@ -84,7 +84,7 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
   force(X)
   force(y)
   function(w, v) {
-    .w <- .extract.w(w)
+    .w <- .extract.w(X, y, w)
     .e.z <- exp(-.w$z)
     H11 <- sum((.w$z^2 - .w$z) * .e.z + .w$z)
     H1n <- (((.w$z - 1) * .e.z + 1) / .w$sigma) %*% X
