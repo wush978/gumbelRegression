@@ -23,6 +23,8 @@ get.moment <- function(y) {
 }
 
 .get.loss.r <- function(X, y) {
+  force(X)
+  force(y)
   function(w) {
     .w <- .extract.w(w)
     sum(.w$z + exp(-.w$z) + log(.w$sigma))
@@ -47,6 +49,8 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
 }
 
 .get.gradient.r <- function(X, y) {
+  force(X)
+  force(y)
   n <- nrow(X)
   function(w) {
     .w <- .extract.w(w)
@@ -77,6 +81,8 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
 }
 
 .get.Hv.r <- function(X, y) {
+  force(X)
+  force(y)
   function(w, v) {
     .w <- .extract.w(w)
     .e.z <- exp(-.w$z)
