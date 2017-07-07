@@ -22,12 +22,21 @@ get.moment <- function(y) {
   list(sigma = sigma, mu = mu, z = z)
 }
 
+.threshold.positive <- .Machine$double.xmax / 10
+.threshold.negative <- - .Machine$double.xmax / 10
+.threshold.correction <- function(x) {
+  x[x > .threshold.positive] <- .threshold.positive
+  x[x < .threshold.negative] <- .threshold.negative
+  x
+}
+
 .get.loss.r <- function(X, y) {
   force(X)
   force(y)
   function(w) {
     .w <- .extract.w(X, y, w)
-    sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    result <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    .threshold.correction(result)
   }
 }
 
@@ -56,10 +65,11 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
     .w <- .extract.w(X, y, w)
     .z <- (as.vector(exp(-.w$z) - 1) %*% X)
     if (isS4(.z)) .z <- .z@x
-    c(
+    result <- c(
       n + sum(.w$z * (exp(-.w$z) - 1)),
       .z / .w$sigma
     )
+    .threshold.correction(result)
   }
 }
 
@@ -95,10 +105,11 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
     if (isS4(Xv1)) Xv1 <- Xv1@x
     XXv1 <- (as.vector(Xv1) * Hnn) %*% X
     if (isS4(XXv1)) XXv1 <- XXv1@x
-    c(
+    result <- c(
       H11 * v[1] + sum(H1n * v1),
       H1n * v[1] + XXv1
     )
+    .threshold.correction(result)
   }
 }
 
