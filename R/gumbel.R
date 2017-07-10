@@ -30,13 +30,17 @@ get.moment <- function(y) {
   x
 }
 
+.is.exceed.threshold <- function(x) {
+  (x > .threshold.positive) | (x < .threshold.negative)
+}
+
 .get.loss.r <- function(X, y) {
   force(X)
   force(y)
   function(w) {
     .w <- .extract.w(X, y, w)
-    result <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
-    .threshold.correction(result)
+    negloglik <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    .threshold.correction(negloglik)
   }
 }
 
@@ -63,13 +67,15 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
   n <- nrow(X)
   function(w) {
     .w <- .extract.w(X, y, w)
+    negloglik <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    if (.is.exceed.threshold(negloglik)) return(rep(0, 1 + n))
     .z <- (as.vector(exp(-.w$z) - 1) %*% X)
     if (isS4(.z)) .z <- .z@x
     result <- c(
       n + sum(.w$z * (exp(-.w$z) - 1)),
       .z / .w$sigma
     )
-    .threshold.correction(result)
+    result
   }
 }
 
@@ -95,6 +101,8 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
   force(y)
   function(w, v) {
     .w <- .extract.w(X, y, w)
+    negloglik <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    if (.is.exceed.threshold(negloglik)) return(rep(0, 1 + n))
     .e.z <- exp(-.w$z)
     H11 <- sum((.w$z^2 - .w$z) * .e.z + .w$z)
     H1n <- (((.w$z - 1) * .e.z + 1) / .w$sigma) %*% X
@@ -109,7 +117,7 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
       H11 * v[1] + sum(H1n * v1),
       H1n * v[1] + XXv1
     )
-    .threshold.correction(result)
+    result
   }
 }
 
