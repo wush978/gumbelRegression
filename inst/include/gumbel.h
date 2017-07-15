@@ -67,13 +67,18 @@ public:
 
   ComputationArguments(const GumbelRegressionData& _data, const int _foldTarget)
     :
-    data(_data), foldTarget(_foldTarget), l2(0.0), lossType(LossType::All), 
-    buf(_data.nrowX, 0.0), buf2(_data.nrowX, 0.0), 
+    data(_data), foldTarget(_foldTarget),
+    l2(0.0), lossType(LossType::All),
+    buf(_data.nrowX, 0.0), buf2(_data.nrowX, 0.0),
     pw(nullptr), pw0(nullptr), pw1(nullptr)
   { }
 
   const int get_foldTarget() const {
     return foldTarget;
+  }
+
+  const int ncol() {
+    return data.ncolX;
   }
 
   void set_l2(double _l2) {
@@ -128,8 +133,10 @@ public:
     if (compute_z) {
       if (sigma.which() == 0) sigma = get_sigma(w);
       const double * pw1 = get_pw1(w);
+      buf.resize(data.nrowX);
       std::fill(buf.begin(), buf.end(), 0);
-      Xv::Xv_dgCMatrix_numeric_folded(data.X, pw1, buf, data.foldId, foldTarget, true);
+      auto tmp = Xv::Xv_dgCMatrix_numeric_folded(data.X, pw1, buf, data.foldId, foldTarget, true);
+      buf.resize(tmp);
       mu2z(boost::get<double>(sigma));
     }
     return buf;
@@ -138,6 +145,7 @@ public:
   const std::vector<double>& get_enzm1(const double* w, boost::variant<std::nullptr_t, double> sigma = nullptr, bool compute_z = true, bool compute_enzm1 = true) {
     if (compute_z) get_z(w, sigma);
     if (compute_enzm1) {
+      buf2.resize(buf.size());
       for(std::size_t i = 0;i < buf.size();i++) {
         buf2[i] = std::exp(-buf[i]) - 1;
       }
@@ -156,8 +164,19 @@ public:
 private:
 
   void mu2z(double sigma) {
-    for(std::size_t i = 0;i < buf.size();i++) {
-      buf[i] = (data.y[i] - buf[i]) / sigma;
+    if (get_foldTarget() == 0) {
+      for(std::size_t i = 0;i < buf.size();i++) {
+        buf[i] = (data.y[i] - buf[i]) / sigma;
+      }
+    } else {
+      const Rcpp::IntegerVector& foldId(boost::get<Rcpp::IntegerVector>(data.foldId));
+      std::size_t index = 0;
+      const int foldTarget = get_foldTarget();
+      for(auto i = 0;i < data.y.size();i++) {
+        if (foldId[i] == foldTarget) continue;
+        buf[index] = (data.y[i] - buf[index]) / sigma;
+        index++;
+      }
     }
   }
 
@@ -254,7 +273,7 @@ private:
     switch(args.get_loss_type()) {
     case LossType::Scale :
     {
-      g[0] = data.nrowX;
+      g[0] = z.size();
       for(std::size_t i = 0;i < z.size();i++) {
         g[0] += z[i] * (std::exp(-z[i]) - 1);
       }
@@ -273,7 +292,7 @@ private:
     case LossType::All :
     {
       const std::vector<double>& enzm1(args.get_enzm1(w, sigma, false));
-      g[0] = data.nrowX;
+      g[0] = z.size();
       double * g1 = g + 1;
       for(std::size_t i = 0;i < z.size();i++) {
         g[0] += z[i] * enzm1[i];
@@ -362,8 +381,10 @@ private :
     case LossType::Location :
     {
       const std::vector<double>& enzm1(args.get_enzm1(w, sigma, false, false));
+      buf.resize(data.nrowX);
       std::fill(buf.begin(), buf.end(), 0);
       Xv::Xv_dgCMatrix_numeric_folded(data.X, s, buf, data.foldId, args.get_foldTarget(), true);
+      buf.resize(z.size());
       double sigma2 = sigma * sigma;
       for(std::size_t i = 0;i < z.size();i++) {
         buf[i] = buf[i] * (enzm1[i] + 1) / sigma2;
@@ -390,8 +411,10 @@ private :
         Hs[0] += s1[i] * buf2[i];
         Hs1[i] = buf2[i] * s[0];
       }
+      buf.resize(data.nrowX);
       std::fill(buf.begin(), buf.end(), 0);
       Xv::Xv_dgCMatrix_numeric_folded(data.X, s1, buf, data.foldId, args.get_foldTarget(), true);
+      buf.resize(z.size());
       double sigma2 = sigma * sigma;
       for(std::size_t i = 0;i < z.size();i++) {
         // Hnn = enz / sigma^2

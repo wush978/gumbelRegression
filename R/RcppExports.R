@@ -5,24 +5,24 @@
     .Call('_gumbelRegression_get_loss', PACKAGE = 'gumbelRegression', X, y, w)
 }
 
-.test.loss.cpp <- function(X, y, w0, w, lossType) {
-    .Call('_gumbelRegression_test_loss', PACKAGE = 'gumbelRegression', X, y, w0, w, lossType)
+.test.loss.cpp <- function(X, y, w0, w, lossType, l2 = 0, foldId = integer(0), foldTarget = 0L) {
+    .Call('_gumbelRegression_test_loss', PACKAGE = 'gumbelRegression', X, y, w0, w, lossType, l2, foldId, foldTarget)
 }
 
 .get.gradient.cpp.internal <- function(X, y, w) {
     .Call('_gumbelRegression_get_gradient', PACKAGE = 'gumbelRegression', X, y, w)
 }
 
-.test.gradient.cpp <- function(X, y, w0, w, lossType) {
-    .Call('_gumbelRegression_test_gradient', PACKAGE = 'gumbelRegression', X, y, w0, w, lossType)
+.test.gradient.cpp <- function(X, y, w0, w, lossType, l2 = 0, foldId = integer(0), foldTarget = 0L) {
+    .Call('_gumbelRegression_test_gradient', PACKAGE = 'gumbelRegression', X, y, w0, w, lossType, l2, foldId, foldTarget)
 }
 
 .get.Hv.cpp.internal <- function(X, y, w, v) {
     .Call('_gumbelRegression_get_Hv', PACKAGE = 'gumbelRegression', X, y, w, v)
 }
 
-.test.Hv.cpp <- function(X, y, w0, w, v, lossType) {
-    .Call('_gumbelRegression_test_Hv', PACKAGE = 'gumbelRegression', X, y, w0, w, v, lossType)
+.test.Hv.cpp <- function(X, y, w0, w, v, lossType, foldId = integer(0), l2 = 0, foldTarget = 0L) {
+    .Call('_gumbelRegression_test_Hv', PACKAGE = 'gumbelRegression', X, y, w0, w, v, lossType, foldId, l2, foldTarget)
 }
 
 .gumbelRegression.cpp.internal <- function(X, y, foldId, lambdaSeq, tolerance) {

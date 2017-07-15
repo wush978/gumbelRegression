@@ -20,8 +20,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // test_loss
-double test_loss(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, int lossType);
-RcppExport SEXP _gumbelRegression_test_loss(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP lossTypeSEXP) {
+double test_loss(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, int lossType, double l2, IntegerVector foldId, int foldTarget);
+RcppExport SEXP _gumbelRegression_test_loss(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP lossTypeSEXP, SEXP l2SEXP, SEXP foldIdSEXP, SEXP foldTargetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -30,7 +30,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector& >::type w0(w0SEXP);
     Rcpp::traits::input_parameter< NumericVector& >::type w(wSEXP);
     Rcpp::traits::input_parameter< int >::type lossType(lossTypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_loss(X, y, w0, w, lossType));
+    Rcpp::traits::input_parameter< double >::type l2(l2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type foldId(foldIdSEXP);
+    Rcpp::traits::input_parameter< int >::type foldTarget(foldTargetSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_loss(X, y, w0, w, lossType, l2, foldId, foldTarget));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -48,8 +51,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // test_gradient
-NumericVector test_gradient(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, int lossType);
-RcppExport SEXP _gumbelRegression_test_gradient(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP lossTypeSEXP) {
+NumericVector test_gradient(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, int lossType, double l2, IntegerVector foldId, int foldTarget);
+RcppExport SEXP _gumbelRegression_test_gradient(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP lossTypeSEXP, SEXP l2SEXP, SEXP foldIdSEXP, SEXP foldTargetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -58,7 +61,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector& >::type w0(w0SEXP);
     Rcpp::traits::input_parameter< NumericVector& >::type w(wSEXP);
     Rcpp::traits::input_parameter< int >::type lossType(lossTypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_gradient(X, y, w0, w, lossType));
+    Rcpp::traits::input_parameter< double >::type l2(l2SEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type foldId(foldIdSEXP);
+    Rcpp::traits::input_parameter< int >::type foldTarget(foldTargetSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_gradient(X, y, w0, w, lossType, l2, foldId, foldTarget));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -77,8 +83,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // test_Hv
-NumericVector test_Hv(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, NumericVector& v, int lossType);
-RcppExport SEXP _gumbelRegression_test_Hv(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP vSEXP, SEXP lossTypeSEXP) {
+NumericVector test_Hv(const S4& X, const NumericVector& y, NumericVector& w0, NumericVector& w, NumericVector& v, int lossType, IntegerVector foldId, double l2, int foldTarget);
+RcppExport SEXP _gumbelRegression_test_Hv(SEXP XSEXP, SEXP ySEXP, SEXP w0SEXP, SEXP wSEXP, SEXP vSEXP, SEXP lossTypeSEXP, SEXP foldIdSEXP, SEXP l2SEXP, SEXP foldTargetSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,7 +94,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector& >::type w(wSEXP);
     Rcpp::traits::input_parameter< NumericVector& >::type v(vSEXP);
     Rcpp::traits::input_parameter< int >::type lossType(lossTypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(test_Hv(X, y, w0, w, v, lossType));
+    Rcpp::traits::input_parameter< IntegerVector >::type foldId(foldIdSEXP);
+    Rcpp::traits::input_parameter< double >::type l2(l2SEXP);
+    Rcpp::traits::input_parameter< int >::type foldTarget(foldTargetSEXP);
+    rcpp_result_gen = Rcpp::wrap(test_Hv(X, y, w0, w, v, lossType, foldId, l2, foldTarget));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -110,11 +119,11 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_gumbelRegression_get_loss", (DL_FUNC) &_gumbelRegression_get_loss, 3},
-    {"_gumbelRegression_test_loss", (DL_FUNC) &_gumbelRegression_test_loss, 5},
+    {"_gumbelRegression_test_loss", (DL_FUNC) &_gumbelRegression_test_loss, 8},
     {"_gumbelRegression_get_gradient", (DL_FUNC) &_gumbelRegression_get_gradient, 3},
-    {"_gumbelRegression_test_gradient", (DL_FUNC) &_gumbelRegression_test_gradient, 5},
+    {"_gumbelRegression_test_gradient", (DL_FUNC) &_gumbelRegression_test_gradient, 8},
     {"_gumbelRegression_get_Hv", (DL_FUNC) &_gumbelRegression_get_Hv, 4},
-    {"_gumbelRegression_test_Hv", (DL_FUNC) &_gumbelRegression_test_Hv, 6},
+    {"_gumbelRegression_test_Hv", (DL_FUNC) &_gumbelRegression_test_Hv, 9},
     {"_gumbelRegression_gumbelRegressionCpp", (DL_FUNC) &_gumbelRegression_gumbelRegressionCpp, 5},
     {NULL, NULL, 0}
 };
