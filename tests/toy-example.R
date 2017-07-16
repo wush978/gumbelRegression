@@ -14,7 +14,7 @@ fold.id <- get.fold.id(n, fold.size <- 3)
 lambda.seq <- c(1, .5, .25)
 result <- gumbelRegression::gumbelRegression(X, y, fold.id, lambda.seq = lambda.seq)
 library(Matrix)
-options(gumbelRegression.parallel = FALSE, gumbelRegression.verbose = TRUE)
+options(gumbelRegression.parallel = FALSE, gumbelRegression.verbose = 2L)
 result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
 
 for(target in 1:fold.size) {
@@ -35,7 +35,7 @@ for(target in 1:fold.size) {
   }
 }
 
-options(gumbelRegression.parallel = TRUE, gumbelRegression.verbose = FALSE)
+options(gumbelRegression.parallel = TRUE, gumbelRegression.verbose = 1L)
 result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
 
 for(target in 1:fold.size) {

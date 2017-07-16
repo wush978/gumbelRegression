@@ -175,5 +175,5 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
   .moment <- get.moment(y)
-  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", FALSE), parallel = getOption("gumbelRegression.parallel", TRUE))
+  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
 }

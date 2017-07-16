@@ -104,7 +104,7 @@ BEGIN_RCPP
 END_RCPP
 }
 // gumbelRegressionCpp
-List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, bool verbose, bool parallel);
+List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, int verbose, bool parallel);
 RcppExport SEXP _gumbelRegression_gumbelRegressionCpp(SEXP XSEXP, SEXP ySEXP, SEXP foldIdSEXP, SEXP lambdaSeqSEXP, SEXP toleranceSEXP, SEXP init_log_sigmaSEXP, SEXP init_interceptSEXP, SEXP verboseSEXP, SEXP parallelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -116,7 +116,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type tolerance(toleranceSEXP);
     Rcpp::traits::input_parameter< double >::type init_log_sigma(init_log_sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type init_intercept(init_interceptSEXP);
-    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< bool >::type parallel(parallelSEXP);
     rcpp_result_gen = Rcpp::wrap(gumbelRegressionCpp(X, y, foldId, lambdaSeq, tolerance, init_log_sigma, init_intercept, verbose, parallel));
     return rcpp_result_gen;

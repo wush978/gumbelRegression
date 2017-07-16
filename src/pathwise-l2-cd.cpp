@@ -24,7 +24,7 @@ class FoldTask : public RcppParallel::Worker {
 
   const double init_intercept;
 
-  const bool verbose;
+  const int verbose;
 
 public:
 
@@ -37,7 +37,7 @@ public:
     int _nfold,
     double _init_log_sigma,
     double _init_intercept,
-    bool _verbose) :
+    int _verbose) :
   data(_data), lambdaSeq(_lambdaSeq), tolerance(_tolerance),
   gumbelCoefList(_gumbelCoefList), cvMseList(_cvMseList),
   nfold(_nfold), init_log_sigma(_init_log_sigma), init_intercept(_init_intercept), verbose(_verbose)
@@ -101,35 +101,39 @@ public:
 
     for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
       double lambda = lambdaSeq[lambda_i];
+      if (verbose > 0) std::cout << "(" << foldTarget << ") lambda: " << lambda << std::endl;
       is_converge = false;
       args.set_l2(lambda);
       while(true) {
         w2[0] = log_sigma(0);
         std::copy(w1.begin(), w1.end(), w2.begin() + 1);
 
+
         args.set_loss_type(GumbelRegression::LossType::Scale);
-        dlib::find_min_box_constrained(
-          dlib::bfgs_search_strategy(),
-          dlib::objective_delta_stop_strategy(tolerance),
-          [&](const DLibVector& log_sigma) {
-            double result = loss(log_sigma.begin());
-            if (verbose) {
-              std::cout << "(" << foldTarget << " scale)log(sigma): " << log_sigma(0) << std::endl;
-              std::cout << "(" << foldTarget << " scale)f: " << result << std::endl;
-            }
-            return result;
-          },
-          [&](const DLibVector& log_sigma) {
-            grad(log_sigma.begin(), pmg1);
-            if (verbose) {
-              std::cout << "(" << foldTarget << " scale)|g|: " << std::abs(mg1(0)) << std::endl;
-            }
-            return mg1;
-          },
-          log_sigma,
-          log_sigma(0) - 1,
-          log_sigma(0) + 1
-        );
+        double current_log_sigma, loss_result;
+        do {
+          current_log_sigma = log_sigma(0);
+          dlib::find_min_box_constrained(
+            dlib::bfgs_search_strategy(),
+            dlib::objective_delta_stop_strategy(tolerance),
+            [&](const DLibVector& log_sigma) {
+              loss_result = loss(log_sigma.begin());
+              return loss_result;
+            },
+            [&](const DLibVector& log_sigma) {
+              grad(log_sigma.begin(), pmg1);
+              return mg1;
+            },
+            log_sigma,
+            log_sigma(0) - 1,
+            log_sigma(0) + 1
+          );
+        } while (std::abs(log_sigma(0) - current_log_sigma) > tolerance);
+        if (verbose > 1) {
+          std::cout << "(" << foldTarget << " scale) log(sigma): " << log_sigma(0) <<
+            ", f: " << loss_result <<
+            ", |g|: " << std::abs(mg1(0)) << std::endl;
+        }
         last_log_sigma = w2[0];
         w2[0] = log_sigma(0);
         args.set_loss_type(GumbelRegression::LossType::Location);
@@ -137,35 +141,28 @@ public:
           dlib::lbfgs_search_strategy(1000),
           dlib::objective_delta_stop_strategy(tolerance),
           [&](const DLibVector& mw1) {
-            double result = loss(mw1.begin());
-            if (verbose) {
-              std::cout << "(" << foldTarget << " location)f: " << result << std::endl;
-            }
-            return result;
+            loss_result = loss(mw1.begin());
+            return loss_result;
           },
           [&](const DLibVector& mw1) {
             grad(mw1.begin(), pmg2);
-            if (verbose) {
-              std::cout << "(" << foldTarget << " location)|g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
-                return left + right * right;
-              })) << std::endl;
-            }
             return mg2;
           },
           w1,
           -1
         );
-        // if (verbose) {
-        //   tronC(location_kernel, pw1 + 1, tolerance, verbose_printer);
-        // } else {
-        //   tronC(location_kernel, pw1 + 1, tolerance, silent_printer);
-        // }
+        if (verbose > 1) {
+          std::cout << "(" << foldTarget << " location) f: " << loss_result <<
+            ", |g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
+              return left + right * right;
+            })) << std::endl;
+        }
         double distance = std::abs(log_sigma(0) - last_log_sigma);
         for(auto i = 0;i < w1.size();i++) {
           double e = std::abs(w1(i) - w2[i + 1]);
           if (e > distance) distance = e;
         }
-        if (verbose) {
+        if (verbose > 1) {
           std::cout << "(" << foldTarget << ")dist: " << distance << std::endl;
         }
         is_converge = distance < tolerance;
@@ -193,7 +190,7 @@ static int ncol(const S4& X) {
 }
 
 //[[Rcpp::export(.gumbelRegression.cpp.internal)]]
-List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, bool verbose = false, bool parallel = true) {
+List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, int verbose = 0, bool parallel = true) {
   int nfold = Rcpp::max(foldId);
   std::vector< gumbelCoefType > gumbelCoefList;
   std::vector< cvMseType > cvMseList;
