@@ -61,16 +61,6 @@ public:
       std::size_t index = 0;
       const IntegerVector& foldId(boost::get<IntegerVector>(data.foldId));
       const double adjustment = GumbelRegression::EulerMascheroniConstant() * std::exp(w[0]);
-      std::cout << "w: ";
-      for(std::size_t i = 0;i < data.ncolX + 1;i++) {
-        std::cout << w[i] << " ";
-      }
-      std::cout << std::endl;
-      std::cout << "mu: ";
-      for(std::size_t i = 0;i < mu.size();i++) {
-        std::cout << mu[i] << " ";
-      }
-      std::cout << std::endl;
       for(std::size_t yi = 0;yi < data.y.size();yi++) {
         if (foldId[yi] != foldTarget) continue;
         double error = (mu[index] + adjustment - data.y[yi]);

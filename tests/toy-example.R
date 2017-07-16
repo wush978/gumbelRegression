@@ -31,6 +31,29 @@ for(target in 1:fold.size) {
     pred <- mu - digamma(1) * exp(w[1])
     e <- (y[fold.id == target] - pred)
     stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
+
+    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-3)
+  }
+}
+
+options(gumbelRegression.parallel = TRUE)
+result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
+
+for(target in 1:fold.size) {
+  for(i in seq_along(lambda.seq)) {
+    w <- result.cpp[[target]]$coef[,i]
+    mu <- X[fold.id == target,] %*% tail(w, -1)
+    pred <- mu - digamma(1) * exp(w[1])
+    e <- (y[fold.id == target] - pred)
+    stopifnot(isTRUE(all.equal(result.cpp[[target]]$cv.mse[i], sum(e^2))))
+
+    w <- result[[target]]$coef[,i]
+    mu <- X[fold.id == target,] %*% tail(w, -1)
+    pred <- mu - digamma(1) * exp(w[1])
+    e <- (y[fold.id == target] - pred)
+    stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
+
+    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-3)
   }
 }
 
