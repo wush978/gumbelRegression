@@ -7,6 +7,10 @@
 
 namespace GumbelRegression {
 
+inline double EulerMascheroniConstant() {
+  return 0.577215664901532;
+};
+
 typedef enum {
     Scale = 0,
     Location = 1,
@@ -61,7 +65,7 @@ class ComputationArguments {
 
   double* pw1;
 
-  double* last_w;
+  const double* last_w;
 
 public:
 
@@ -153,11 +157,11 @@ public:
     return buf2;
   }
 
-  double * get_last_w() const {
+  const double * get_last_w() const {
     return last_w;
   }
 
-  void set_last_w(double* w) {
+  void set_last_w(const double* w) {
     last_w = w;
   }
 
@@ -199,7 +203,7 @@ public:
 
   ~GumbelRegressionLoss() { }
 
-  double operator()(double* w) {
+  double operator()(const double* w) {
     double l2 = args.get_l2();
     if (l2 == 0) return negloglik(w);
     double regularization = 0.0;
@@ -242,7 +246,7 @@ public:
 
   ~GumbelRegressionGradient() { }
 
-  void operator()(double* w, double* g) {
+  void operator()(const double* w, double* g) {
     args.set_last_w(w);
     double l2 = args.get_l2();
     negloglikGrad(w, g);
@@ -266,7 +270,7 @@ public:
 
 private:
 
-  void negloglikGrad(double* w, double* g) {
+  void negloglikGrad(const double* w, double* g) {
     double log_sigma = args.get_log_sigma(w);
     double sigma= std::exp(log_sigma);
     const std::vector<double>& z(args.get_z(w, sigma));
@@ -358,7 +362,7 @@ private :
   std::vector<double> buf, buf2;
 
   void negloglikHessianV(const double* s, double *Hs) {
-    double * w = args.get_last_w();
+    const double * w = args.get_last_w();
     double sigma = args.get_sigma(w);
     double H11 = 0.0;
     const std::vector<double>& z(args.get_z(w, sigma, false));

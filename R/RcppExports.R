@@ -25,7 +25,7 @@
     .Call('_gumbelRegression_test_Hv', PACKAGE = 'gumbelRegression', X, y, w0, w, v, lossType, foldId, l2, foldTarget)
 }
 
-.gumbelRegression.cpp.internal <- function(X, y, foldId, lambdaSeq, tolerance) {
-    .Call('_gumbelRegression_gumbelRegressionCpp', PACKAGE = 'gumbelRegression', X, y, foldId, lambdaSeq, tolerance)
+.gumbelRegression.cpp.internal <- function(X, y, foldId, lambdaSeq, tolerance, init_log_sigma, init_intercept, verbose = FALSE, parallel = TRUE) {
+    .Call('_gumbelRegression_gumbelRegressionCpp', PACKAGE = 'gumbelRegression', X, y, foldId, lambdaSeq, tolerance, init_log_sigma, init_intercept, verbose, parallel)
 }
 

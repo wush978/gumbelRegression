@@ -1,3 +1,4 @@
+library(methods)
 library(gumbelRegression)
 set.seed(1)
 n <- 100
@@ -9,9 +10,36 @@ a <- X %*% alpha
 b <- exp(X %*% beta)
 y <- reliaR::rgumbel(100, a, 1/b)
 
-result <- gumbelRegression::gumbelRegression(X, y, get.fold.id(n, 3))
+fold.id <- get.fold.id(n, fold.size <- 3)
+lambda.seq <- c(1, .5, .25)
+result <- gumbelRegression::gumbelRegression(X, y, fold.id, lambda.seq = lambda.seq)
 library(Matrix)
-result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, get.fold.id(n, 3), implementation = "cpp")
+library(HsTrust)
+options(gumbelRegression.parallel = FALSE)
+result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
+
+for(target in 1:fold.size) {
+  for(i in seq_along(lambda.seq)) {
+    w <- result.cpp[[target]]$coef[,i]
+    mu <- X[fold.id == target,] %*% tail(w, -1)
+    pred <- mu - digamma(1) * exp(w[1])
+    e <- (y[fold.id == target] - pred)
+    stopifnot(isTRUE(all.equal(result.cpp[[target]]$cv.mse[i], sum(e^2))))
+
+    w <- result[[target]]$coef[,i]
+    mu <- X[fold.id == target,] %*% tail(w, -1)
+    pred <- mu - digamma(1) * exp(w[1])
+    e <- (y[fold.id == target] - pred)
+    stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
+  }
+}
+
+loss <- get.loss(X, y)
+for(i in 1:4) {
+  cat(sprintf("%f -- %f\n", loss(result[[i]]$coef[,length(lambda.seq)]), loss(result.cpp[[i]]$coef[,length(lambda.seq)])))
+}
+
+
 
 stopifnot(all.equal(
   lapply(result, names),
@@ -22,3 +50,5 @@ stopifnot(all.equal(
   lapply(result, lapply, dim),
   lapply(result.cpp, lapply, dim)
 ))
+
+

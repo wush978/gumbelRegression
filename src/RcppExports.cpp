@@ -3,6 +3,8 @@
 
 #include "../inst/include/gumbelRegression.h"
 #include <Rcpp.h>
+// [[Rcpp::depends(dlib)]]
+// [[Rcpp::plugins(cpp11)]]
 
 using namespace Rcpp;
 
@@ -102,8 +104,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gumbelRegressionCpp
-List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance);
-RcppExport SEXP _gumbelRegression_gumbelRegressionCpp(SEXP XSEXP, SEXP ySEXP, SEXP foldIdSEXP, SEXP lambdaSeqSEXP, SEXP toleranceSEXP) {
+List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, bool verbose, bool parallel);
+RcppExport SEXP _gumbelRegression_gumbelRegressionCpp(SEXP XSEXP, SEXP ySEXP, SEXP foldIdSEXP, SEXP lambdaSeqSEXP, SEXP toleranceSEXP, SEXP init_log_sigmaSEXP, SEXP init_interceptSEXP, SEXP verboseSEXP, SEXP parallelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -112,7 +114,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< IntegerVector >::type foldId(foldIdSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type lambdaSeq(lambdaSeqSEXP);
     Rcpp::traits::input_parameter< double >::type tolerance(toleranceSEXP);
-    rcpp_result_gen = Rcpp::wrap(gumbelRegressionCpp(X, y, foldId, lambdaSeq, tolerance));
+    Rcpp::traits::input_parameter< double >::type init_log_sigma(init_log_sigmaSEXP);
+    Rcpp::traits::input_parameter< double >::type init_intercept(init_interceptSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< bool >::type parallel(parallelSEXP);
+    rcpp_result_gen = Rcpp::wrap(gumbelRegressionCpp(X, y, foldId, lambdaSeq, tolerance, init_log_sigma, init_intercept, verbose, parallel));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -124,7 +130,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_gumbelRegression_test_gradient", (DL_FUNC) &_gumbelRegression_test_gradient, 8},
     {"_gumbelRegression_get_Hv", (DL_FUNC) &_gumbelRegression_get_Hv, 4},
     {"_gumbelRegression_test_Hv", (DL_FUNC) &_gumbelRegression_test_Hv, 9},
-    {"_gumbelRegression_gumbelRegressionCpp", (DL_FUNC) &_gumbelRegression_gumbelRegressionCpp, 5},
+    {"_gumbelRegression_gumbelRegressionCpp", (DL_FUNC) &_gumbelRegression_gumbelRegressionCpp, 9},
     {NULL, NULL, 0}
 };
 

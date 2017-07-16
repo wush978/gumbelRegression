@@ -138,6 +138,7 @@ stopifnot(isTRUE(all.equal(
 )))
 
 # gradient
+gradient <- get.gradient(X, y)
 stopifnot(isTRUE(all.equal(
   gradient(w)[1],
   gumbelRegression:::.test.gradient.cpp(X, y, w, w[1], 0)

@@ -88,6 +88,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(fold.id))
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
+  .moment <- get.moment(y)
   .fold.task <- function(fold.target) {
     if (fold.target <= nfold) {
       cv.train <- list(
@@ -98,8 +99,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
         X = X[fold.id == fold.target,],
         y = y[fold.id == fold.target]
       )
-      start <- get.moment(cv.train$y)
-      .start <- start <- c(log(start$sigma), start$mu, rep(0, ncol(cv.train$X) - 1))
+      .start <- start <- c(log(.moment$sigma), .moment$mu, rep(0, ncol(cv.train$X) - 1))
       gumbel.coef <- matrix(.0, length(start), length(lambda.seq))
       cv.mse <- numeric(length(lambda.seq))
       for(i in seq_along(lambda.seq)) {
@@ -123,7 +123,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
           start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
           if (abs(old.start - start) %>% max() < 1e-4) break
         }
-        cv.mse[i] <- .mse(cv.test$y, cv.test$X %*% tail(start, -1))
+        cv.mse[i] <- .mse(cv.test$y, cv.test$X %*% tail(start, -1) - digamma(1) * exp(start[1]))
         gumbel.coef[,i] <- start
         sprintf("fold: %d l2: %f mse: %f\n", fold.target, l2, cv.mse[i]) %>% cat()
       } # for i
@@ -166,7 +166,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   lapply(seq_len(nfold + 1), .fold.task)
 }
 
-.gumbelRegression.cpp <- function(X, y, fold.id, lambda.seq, tolerance) {
+.gumbelRegression.cpp <- function(X, y, fold.id, lambda.seq, tolerance, parallel) {
   stopifnot(isS4(X))
   stopifnot(class(X) == "dgCMatrix")
   nfold <- max(fold.id)
@@ -174,5 +174,6 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(fold.id))
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
-  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance)
+  .moment <- get.moment(y)
+  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", FALSE), parallel = getOption("gumbelRegression.parallel", TRUE))
 }

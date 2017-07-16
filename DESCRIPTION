@@ -12,5 +12,5 @@ RoxygenNote: 6.0.1
 Imports: magrittr, HsTrust, Rcpp(>= 0.12), RcppParallel
 Suggests: reliaR, Deriv, numDeriv, knitr, rmarkdown, Xv, magrittr, parallel
 VignetteBuilder: knitr
-LinkingTo: Rcpp, Xv, HsTrust, RcppParallel, BH
+LinkingTo: Rcpp, Xv, HsTrust, RcppParallel, BH, dlib
 SystemRequirements: C++11, GNU make

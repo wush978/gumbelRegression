@@ -3,12 +3,7 @@
 
 #include <Xv.h>
 #include <HsTrust.h>
-
-
-namespace GumbelRegression {
-
-
-
-}
+#include <dlib/optimization.h>
+#include "gumbel.h"
 
 #endif // __PATHWISE_L2_CD_H__
