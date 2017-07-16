@@ -14,8 +14,7 @@ fold.id <- get.fold.id(n, fold.size <- 3)
 lambda.seq <- c(1, .5, .25)
 result <- gumbelRegression::gumbelRegression(X, y, fold.id, lambda.seq = lambda.seq)
 library(Matrix)
-library(HsTrust)
-options(gumbelRegression.parallel = FALSE)
+options(gumbelRegression.parallel = FALSE, gumbelRegression.verbose = TRUE)
 result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
 
 for(target in 1:fold.size) {
@@ -32,11 +31,11 @@ for(target in 1:fold.size) {
     e <- (y[fold.id == target] - pred)
     stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
 
-    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-3)
+    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-2)
   }
 }
 
-options(gumbelRegression.parallel = TRUE)
+options(gumbelRegression.parallel = TRUE, gumbelRegression.verbose = FALSE)
 result.cpp <- gumbelRegression::gumbelRegression(as(X, "CsparseMatrix"), y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
 
 for(target in 1:fold.size) {
@@ -53,7 +52,7 @@ for(target in 1:fold.size) {
     e <- (y[fold.id == target] - pred)
     stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
 
-    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-3)
+    stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-2)
   }
 }
 

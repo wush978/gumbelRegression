@@ -3,6 +3,9 @@
 #include <pathwise-l2-cd.h>
 using namespace Rcpp;
 
+typedef Rcpp::NumericMatrix gumbelCoefType;
+typedef Rcpp::NumericVector cvMseType;
+
 class FoldTask : public RcppParallel::Worker {
 
   const GumbelRegression::GumbelRegressionData& data;
@@ -11,9 +14,9 @@ class FoldTask : public RcppParallel::Worker {
 
   const double tolerance;
 
-  std::vector<NumericMatrix>& gumbelCoefList;
+  std::vector< gumbelCoefType >& gumbelCoefList;
 
-  std::vector<NumericVector>& cvMseList;
+  std::vector< cvMseType >& cvMseList;
 
   const int nfold;
 
@@ -29,8 +32,8 @@ public:
     const GumbelRegression::GumbelRegressionData& _data,
     const NumericVector& _lambdaSeq,
     const double _tolerance,
-    std::vector<NumericMatrix>& _gumbelCoefList,
-    std::vector<NumericVector>& _cvMseList,
+    std::vector< gumbelCoefType >& _gumbelCoefList,
+    std::vector< cvMseType >& _cvMseList,
     int _nfold,
     double _init_log_sigma,
     double _init_intercept,
@@ -78,71 +81,99 @@ public:
     auto silent_printer = [](const char* s) {
     };
     auto& gumbelCoef(gumbelCoefList[foldTarget - 1]);
-    std::vector<double> w1(data.ncolX + 1, 0.0), w2(data.ncolX + 1, 0.0);
-    w1[0] = init_log_sigma;
-    w1[1] = init_intercept;
-    double *pw1 = &w1[0];
-    double **pw = &pw1;
     bool is_converge;
     GumbelRegression::ComputationArguments args(data, (foldTarget == nfold + 1 ? 0 : foldTarget));
     GumbelRegression::GumbelRegressionLoss loss(data, args);
     GumbelRegression::GumbelRegressionGradient grad(data, args);
     GumbelRegression::GumbelRegressionHessianV hv(data, args);
-    args.set_pw(pw);
-    // using dlib bfgs to solve scale
     typedef dlib::matrix<double, 0, 1> DLibVector;
     DLibVector log_sigma(1);
+    log_sigma(0) = init_log_sigma;
+    DLibVector w1(data.ncolX);
+    w1(0) = init_intercept;
+    std::vector<double> w2(data.ncolX + 1, 0.0);
+    double last_log_sigma;
+    double *pw2 = &w2[0];
+    args.set_pw(&pw2);
+    DLibVector mg1(1), mg2(data.ncolX);
+    double *pmg1 = mg1.begin(), *pmg2 = mg2.begin();
+    // auto location_kernel = init_tronC(loss, grad, hv, data.ncolX);
 
-    auto location_kernel = init_tronC(loss, grad, hv, data.ncolX);
     for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
       double lambda = lambdaSeq[lambda_i];
       is_converge = false;
       args.set_l2(lambda);
       while(true) {
-        w2 = w1;
+        w2[0] = log_sigma(0);
+        std::copy(w1.begin(), w1.end(), w2.begin() + 1);
+
         args.set_loss_type(GumbelRegression::LossType::Scale);
-        log_sigma(0) = w1[0];
         dlib::find_min_box_constrained(
           dlib::bfgs_search_strategy(),
           dlib::objective_delta_stop_strategy(tolerance),
-          [&loss, &foldTarget, this](const DLibVector& log_sigma) {
-            const double *p = log_sigma.begin();
-            double result = loss(p);
+          [&](const DLibVector& log_sigma) {
+            double result = loss(log_sigma.begin());
             if (verbose) {
-              std::cout << "(" << foldTarget << ")log(sigma): " << *p << std::endl;
-              std::cout << "(" << foldTarget << ")f: " << result << std::endl;
+              std::cout << "(" << foldTarget << " scale)log(sigma): " << log_sigma(0) << std::endl;
+              std::cout << "(" << foldTarget << " scale)f: " << result << std::endl;
             }
             return result;
           },
-          [&grad, &foldTarget, this](const DLibVector& log_sigma) {
-            const double *p = log_sigma.begin();
-            DLibVector result(1);
-            double *g = result.begin();
-            grad(p, g);
+          [&](const DLibVector& log_sigma) {
+            grad(log_sigma.begin(), pmg1);
             if (verbose) {
-              std::cout << "(" << foldTarget << ")g: " << result(0) << std::endl;
+              std::cout << "(" << foldTarget << " scale)|g|: " << std::abs(mg1(0)) << std::endl;
             }
-            return result;
+            return mg1;
           },
           log_sigma,
-          w1[0] - 1,
-          w1[0] + 1
+          log_sigma(0) - 1,
+          log_sigma(0) + 1
         );
-        w1[0] = log_sigma(0);
+        last_log_sigma = w2[0];
+        w2[0] = log_sigma(0);
         args.set_loss_type(GumbelRegression::LossType::Location);
-        if (verbose) {
-          tronC(location_kernel, pw1 + 1, tolerance, verbose_printer);
-        } else {
-          tronC(location_kernel, pw1 + 1, tolerance, silent_printer);
+        dlib::find_min(
+          dlib::lbfgs_search_strategy(1000),
+          dlib::objective_delta_stop_strategy(tolerance),
+          [&](const DLibVector& mw1) {
+            double result = loss(mw1.begin());
+            if (verbose) {
+              std::cout << "(" << foldTarget << " location)f: " << result << std::endl;
+            }
+            return result;
+          },
+          [&](const DLibVector& mw1) {
+            grad(mw1.begin(), pmg2);
+            if (verbose) {
+              std::cout << "(" << foldTarget << " location)|g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
+                return left + right * right;
+              })) << std::endl;
+            }
+            return mg2;
+          },
+          w1,
+          -1
+        );
+        // if (verbose) {
+        //   tronC(location_kernel, pw1 + 1, tolerance, verbose_printer);
+        // } else {
+        //   tronC(location_kernel, pw1 + 1, tolerance, silent_printer);
+        // }
+        double distance = std::abs(log_sigma(0) - last_log_sigma);
+        for(auto i = 0;i < w1.size();i++) {
+          double e = std::abs(w1(i) - w2[i + 1]);
+          if (e > distance) distance = e;
         }
         if (verbose) {
-          std::cout << "(" << foldTarget << ")dist: " << dist(w1, w2) << std::endl;
+          std::cout << "(" << foldTarget << ")dist: " << distance << std::endl;
         }
-        is_converge = dist(w1, w2) < tolerance;
+        is_converge = distance < tolerance;
         if (is_converge) break;
       }
       double *presult = &gumbelCoef(0, lambda_i);
-      std::copy(w1.begin(), w1.end(), presult);
+      presult[0] = log_sigma(0);
+      std::copy(w1.begin(), w1.end(), presult + 1);
     }
   }
 
@@ -154,15 +185,6 @@ public:
   }
 private:
 
-  static const double dist(const std::vector<double>& w1, const std::vector<double>& w2) {
-    double result = 0, tmp;
-    for(std::size_t i = 0;i < w1.size();i++) {
-      tmp = std::abs(w1[i] - w2[i]);
-      if (tmp > result) result = tmp;
-    }
-    return result;
-  }
-
 };
 
 static int ncol(const S4& X) {
@@ -173,20 +195,20 @@ static int ncol(const S4& X) {
 //[[Rcpp::export(.gumbelRegression.cpp.internal)]]
 List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, bool verbose = false, bool parallel = true) {
   int nfold = Rcpp::max(foldId);
-  std::vector<NumericMatrix> gumbelCoefList;
-  std::vector<NumericVector> cvMseList;
+  std::vector< gumbelCoefType > gumbelCoefList;
+  std::vector< cvMseType > cvMseList;
   for(int i = 0;i < nfold;i++) {
-    gumbelCoefList.push_back(NumericMatrix(1 + ncol(X), lambdaSeq.size()));
-    cvMseList.push_back(NumericVector(lambdaSeq.size()));
+    gumbelCoefList.push_back(gumbelCoefType(NumericMatrix(1 + ncol(X), lambdaSeq.size())));
+    cvMseList.push_back(cvMseType(NumericVector(lambdaSeq.size())));
   }
-  gumbelCoefList.push_back(NumericMatrix(1 + ncol(X), lambdaSeq.size()));
+  gumbelCoefList.push_back(gumbelCoefType(NumericMatrix(1 + ncol(X), lambdaSeq.size())));
   GumbelRegression::GumbelRegressionData data(X, y, foldId);
   FoldTask foldTask(data, lambdaSeq, tolerance, gumbelCoefList, cvMseList, nfold, init_log_sigma, init_intercept, verbose);
   if (parallel) {
-    Rcout << "Fit gumbel regression in parallel mode" << std::endl;
+    std::cout << "Fit gumbel regression in parallel mode" << std::endl;
     RcppParallel::parallelFor(1, nfold + 2, foldTask);
   } else {
-    Rcout << "Fit gumbel regression in single mode" << std::endl;
+    std::cout << "Fit gumbel regression in single mode" << std::endl;
     for(std::size_t i = 1;i < nfold + 2;i++) {
       foldTask(i, i + 1);
     }
