@@ -4,3 +4,5 @@
 .Ruserdata
 .lib
 .Rprofile
+src/*.o
+src/*.so

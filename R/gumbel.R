@@ -44,6 +44,15 @@ get.moment <- function(y) {
   }
 }
 
+.get.loss.cpp <- function(X, y) {
+  stopifnot(class(X) == "dgCMatrix")
+  force(X)
+  force(y)
+  function(w) {
+    .get.loss.cpp.internal(X, y, w)
+  }
+}
+
 #'@title Get the Loss Function of Gumbel Regression Given the Response and Covariates
 #'@param X matrix. The covariates.
 #'@param y numeric vector. The response.
@@ -59,6 +68,15 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
     "cpp" = .get.loss.cpp(X, y),
     stop("Unknown implementation")
     )
+}
+
+.get.gradient.cpp <- function(X, y) {
+  stopifnot(class(X) == "dgCMatrix")
+  force(X)
+  force(y)
+  function(w) {
+    .get.gradient.cpp.internal(X, y, w)
+  }
 }
 
 .get.gradient.r <- function(X, y) {
@@ -94,6 +112,15 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
     "cpp" = .get.gradient.cpp(X, y),
     stop("Unknown implementation")
     )
+}
+
+.get.Hv.cpp <- function(X, y) {
+  stopifnot(class(X) == "dgCMatrix")
+  force(X)
+  force(y)
+  function(w, v) {
+    .get.Hv.cpp.internal(X, y, w, v)
+  }
 }
 
 .get.Hv.r <- function(X, y) {

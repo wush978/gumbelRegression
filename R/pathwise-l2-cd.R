@@ -21,6 +21,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   switch(
     implementation,
     "r" = .gumbelRegression.r(X, y, fold.id, lambda.seq, tolerance),
+    "cpp" = .gumbelRegression.cpp(X, y, fold.id, lambda.seq, tolerance),
     stop("Unknown implementation")
   )
 }
@@ -37,7 +38,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       f0(w) + l2 * sum(tail(w, -2)^2)
     }
   }
-  
+
   get.g <- function(X, y, l2) {
     force(X)
     force(y)
@@ -46,7 +47,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       g0(w) + (2 * l2) * c(0, 0, tail(w, -2))
     }
   }
-  
+
   get.Hv <- function(X, y, l2) {
     force(X)
     force(y)
@@ -55,7 +56,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       Hv0(w, v) + (2 * l2) * c(0, 0, tail(v, -2))
     }
   }
-  
+
   get.projection <- function(f, w0, i) {
     force(f)
     force(w0)
@@ -67,7 +68,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       if (length(result) > 1) result[i] else result
     }
   }
-  
+
   get.projection.Hv <- function(f, w0, i) {
     force(f)
     force(w0)
@@ -81,12 +82,13 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       if (length(result) > 1) result[i] else result
     }
   }
-  
+
   nfold <- max(fold.id)
   stopifnot(min(fold.id) == 1)
   stopifnot(nrow(X) == length(fold.id))
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
+  .moment <- get.moment(y)
   .fold.task <- function(fold.target) {
     if (fold.target <= nfold) {
       cv.train <- list(
@@ -97,8 +99,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
         X = X[fold.id == fold.target,],
         y = y[fold.id == fold.target]
       )
-      start <- get.moment(cv.train$y)
-      .start <- start <- c(log(start$sigma), start$mu, rep(0, ncol(cv.train$X) - 1))
+      .start <- start <- c(log(.moment$sigma), .moment$mu, rep(0, ncol(cv.train$X) - 1))
       gumbel.coef <- matrix(.0, length(start), length(lambda.seq))
       cv.mse <- numeric(length(lambda.seq))
       for(i in seq_along(lambda.seq)) {
@@ -120,9 +121,9 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
             ncol(cv.train$X)
           )
           start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
-          if (abs(old.start - start) %>% max() < 1e-4) break          
+          if (abs(old.start - start) %>% max() < 1e-4) break
         }
-        cv.mse[i] <- .mse(cv.test$y, cv.test$X %*% tail(start, -1))
+        cv.mse[i] <- .mse(cv.test$y, cv.test$X %*% tail(start, -1) - digamma(1) * exp(start[1]))
         gumbel.coef[,i] <- start
         sprintf("fold: %d l2: %f mse: %f\n", fold.target, l2, cv.mse[i]) %>% cat()
       } # for i
@@ -131,7 +132,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       cv.train <- list(
         X = X,
         y = y
-      )  
+      )
       start <- gumbelRegression::get.moment(cv.train$y)
       .start <- start <- c(log(start$sigma), start$mu, rep(0, ncol(cv.train$X) - 1))
       gumbel.coef <- matrix(.0, length(start), length(lambda.seq))
@@ -161,6 +162,18 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
       list(coef = gumbel.coef)
     }
   }
-  
+
   lapply(seq_len(nfold + 1), .fold.task)
+}
+
+.gumbelRegression.cpp <- function(X, y, fold.id, lambda.seq, tolerance, parallel) {
+  stopifnot(isS4(X))
+  stopifnot(class(X) == "dgCMatrix")
+  nfold <- max(fold.id)
+  stopifnot(min(fold.id) == 1)
+  stopifnot(nrow(X) == length(fold.id))
+  stopifnot(nrow(X) == length(y))
+  stopifnot(diff(lambda.seq) < 0)
+  .moment <- get.moment(y)
+  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", FALSE), parallel = getOption("gumbelRegression.parallel", TRUE))
 }
