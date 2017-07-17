@@ -1,7 +1,7 @@
 Package: gumbelRegression
 Type: Package
 Title: Implement Functions for Fitting Gumbel Regression
-Version: 0.1.1
+Version: 0.1.2
 Author: Wush Wu
 Maintainer: Wush Wu <wush978@gmail.com>
 Description: Implement Functions for Fitting Gumbel Regression
@@ -12,5 +12,5 @@ RoxygenNote: 6.0.1
 Imports: magrittr, Rcpp(>= 0.12), RcppParallel
 Suggests: reliaR, Deriv, numDeriv, knitr, rmarkdown, Xv, magrittr, parallel
 VignetteBuilder: knitr
-LinkingTo: Rcpp, Xv, RcppParallel, BH, dlib
+LinkingTo: Rcpp, Xv, RcppParallel, BH, dlib, HsTrust
 SystemRequirements: C++11, GNU make

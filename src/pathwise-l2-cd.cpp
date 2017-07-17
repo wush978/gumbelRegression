@@ -1,6 +1,55 @@
 #include <Rcpp.h>
 #include <RcppParallel.h>
 #include <pathwise-l2-cd.h>
+#include <HsTrust.h>
+
+struct GumbelRegressionFunction : public ::function {
+
+  const GumbelRegression::GumbelRegressionData& data;
+
+  GumbelRegression::ComputationArguments args;
+
+  GumbelRegression::GumbelRegressionLoss loss;
+
+  GumbelRegression::GumbelRegressionGradient gradient;
+
+  GumbelRegression::GumbelRegressionHessianV hv;
+
+public:
+
+  GumbelRegressionFunction(const GumbelRegression::GumbelRegressionData& _data, int foldTarget)
+    : data(_data), args(data, foldTarget), loss(data, args), gradient(data, args), hv(data, args)
+  { }
+
+  virtual ~GumbelRegressionFunction() { }
+
+  virtual double fun(double *w) {
+    return loss(w);
+  }
+
+  virtual void grad(const double *w, double *g) {
+    return gradient(w, g);
+  }
+
+  virtual void Hv(const double *s, double *Hs) {
+    return hv(s, Hs);
+  }
+
+  virtual int get_nr_variable(void) {
+    switch(args.get_loss_type()) {
+    case GumbelRegression::LossType::Scale :
+      return 1;
+    case GumbelRegression::LossType::Location :
+      return data.ncolX;
+    case GumbelRegression::LossType::All :
+      return data.ncolX + 1;
+    }
+  }
+
+
+
+};
+
 using namespace Rcpp;
 
 typedef Rcpp::NumericMatrix gumbelCoefType;
@@ -82,46 +131,57 @@ public:
     };
     auto& gumbelCoef(gumbelCoefList[foldTarget - 1]);
     bool is_converge;
-    GumbelRegression::ComputationArguments args(data, (foldTarget == nfold + 1 ? 0 : foldTarget));
-    GumbelRegression::GumbelRegressionLoss loss(data, args);
-    GumbelRegression::GumbelRegressionGradient grad(data, args);
-    GumbelRegression::GumbelRegressionHessianV hv(data, args);
+    GumbelRegressionFunction grfunction(data, (foldTarget == nfold + 1 ? 0 : foldTarget));
     typedef dlib::matrix<double, 0, 1> DLibVector;
     DLibVector log_sigma(1);
     log_sigma(0) = init_log_sigma;
     DLibVector w1(data.ncolX);
     w1(0) = init_intercept;
     std::vector<double> w2(data.ncolX + 1, 0.0);
+    // compute reference loss
+    w2[0] = init_log_sigma;
+    w2[1] = init_intercept;
+    grfunction.args.set_loss_type(GumbelRegression::LossType::All);
+    double reference_loss = grfunction.loss(&w2[0]);
+    double cd_threshold = reference_loss * tolerance;
     double last_log_sigma;
     double *pw2 = &w2[0];
-    args.set_pw(&pw2);
+    grfunction.args.set_pw(&pw2);
     DLibVector mg1(1), mg2(data.ncolX);
     double *pmg1 = mg1.begin(), *pmg2 = mg2.begin();
-    // auto location_kernel = init_tronC(loss, grad, hv, data.ncolX);
-
+    std::shared_ptr<TRON> location_tron(HsTrust::init_tron(&grfunction, tolerance, 1000), [](TRON* tron) {
+      HsTrust::finalize_tron(tron);
+    });
+    if (verbose > 1) {
+      HsTrust::set_print_string(location_tron.get(), [&foldTarget](const char* s) {
+        std::cout << "(" << foldTarget << ") " << s << std::endl;
+      });
+    } else {
+      HsTrust::set_print_string(location_tron.get(), [&foldTarget](const char* s) { });
+    }
+    double last_loss = reference_loss, current_loss = reference_loss;
     for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
       double lambda = lambdaSeq[lambda_i];
       if (verbose > 0) std::cout << "(" << foldTarget << ") lambda: " << lambda << std::endl;
       is_converge = false;
-      args.set_l2(lambda);
+      grfunction.args.set_l2(lambda);
+      w2[0] = log_sigma(0);
+      std::copy(w1.begin(), w1.end(), w2.begin() + 1);
       while(true) {
-        w2[0] = log_sigma(0);
-        std::copy(w1.begin(), w1.end(), w2.begin() + 1);
-
-
-        args.set_loss_type(GumbelRegression::LossType::Scale);
         double current_log_sigma, loss_result;
+        grfunction.args.set_loss_type(GumbelRegression::LossType::Scale);
+        // optimizing scale parameter
         do {
           current_log_sigma = log_sigma(0);
           dlib::find_min_box_constrained(
             dlib::bfgs_search_strategy(),
             dlib::objective_delta_stop_strategy(tolerance),
             [&](const DLibVector& log_sigma) {
-              loss_result = loss(log_sigma.begin());
+              loss_result = grfunction.loss(log_sigma.begin());
               return loss_result;
             },
             [&](const DLibVector& log_sigma) {
-              grad(log_sigma.begin(), pmg1);
+              grfunction.grad(log_sigma.begin(), pmg1);
               return mg1;
             },
             log_sigma,
@@ -136,37 +196,34 @@ public:
         }
         last_log_sigma = w2[0];
         w2[0] = log_sigma(0);
-        args.set_loss_type(GumbelRegression::LossType::Location);
-        dlib::find_min(
-          dlib::lbfgs_search_strategy(1000),
-          dlib::objective_delta_stop_strategy(tolerance),
-          [&](const DLibVector& mw1) {
-            loss_result = loss(mw1.begin());
-            return loss_result;
-          },
-          [&](const DLibVector& mw1) {
-            grad(mw1.begin(), pmg2);
-            return mg2;
-          },
-          w1,
-          -1
-        );
+        // optimizing location
+        grfunction.args.set_loss_type(GumbelRegression::LossType::Location);
+        HsTrust::tron(location_tron.get(), w1.begin());
         if (verbose > 1) {
           std::cout << "(" << foldTarget << " location) f: " << loss_result <<
             ", |g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
               return left + right * right;
             })) << std::endl;
         }
-        double distance = std::abs(log_sigma(0) - last_log_sigma);
-        for(auto i = 0;i < w1.size();i++) {
-          double e = std::abs(w1(i) - w2[i + 1]);
-          if (e > distance) distance = e;
+        // copy updated result to w2
+        w2[0] = log_sigma(0);
+        std::copy(w1.begin(), w1.end(), w2.begin() + 1);
+        // compute latest loss
+        grfunction.args.set_loss_type(GumbelRegression::LossType::All);
+        current_loss = grfunction.loss(&w2[0]);
+        double distance = std::abs(last_loss - current_loss);
+        if (verbose > 0) {
+          std::cout << "(" << foldTarget <<
+            ") The coordinate descent improves the loss from " <<
+            last_loss << " to " <<
+            current_loss << "(improves: " <<
+            distance << ", reference: " <<
+            reference_loss << ", threshold: " <<
+            cd_threshold << ")" << std::endl;
         }
-        if (verbose > 1) {
-          std::cout << "(" << foldTarget << ")dist: " << distance << std::endl;
-        }
-        is_converge = distance < tolerance;
+        is_converge = distance < cd_threshold;
         if (is_converge) break;
+        last_loss = current_loss;
       }
       double *presult = &gumbelCoef(0, lambda_i);
       presult[0] = log_sigma(0);
@@ -201,6 +258,7 @@ List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVec
   gumbelCoefList.push_back(gumbelCoefType(NumericMatrix(1 + ncol(X), lambdaSeq.size())));
   GumbelRegression::GumbelRegressionData data(X, y, foldId);
   FoldTask foldTask(data, lambdaSeq, tolerance, gumbelCoefList, cvMseList, nfold, init_log_sigma, init_intercept, verbose);
+  HsTrust::init();
   if (parallel) {
     std::cout << "Fit gumbel regression in parallel mode" << std::endl;
     RcppParallel::parallelFor(1, nfold + 2, foldTask);
