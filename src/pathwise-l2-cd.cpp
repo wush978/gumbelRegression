@@ -233,8 +233,13 @@ public:
 
   void operator()(std::size_t begin, std::size_t end) {
     for(std::size_t foldTarget = begin;foldTarget < end;foldTarget++) {
-      train(foldTarget);
-      cvPredict(foldTarget);
+      try {
+        train(foldTarget);
+        cvPredict(foldTarget);
+      } catch (std::exception& e) {
+        std::cerr << "(" << foldTarget << ") An error occurred." << std::endl;
+        throw e;
+      }
     }
   }
 private:
