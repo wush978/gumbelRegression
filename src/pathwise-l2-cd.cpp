@@ -149,7 +149,7 @@ public:
     grfunction.args.set_pw(&pw2);
     DLibVector mg1(1), mg2(data.ncolX);
     double *pmg1 = mg1.begin(), *pmg2 = mg2.begin();
-    std::shared_ptr<TRON> location_tron(HsTrust::init_tron(&grfunction, tolerance, 1000), [](TRON* tron) {
+    std::shared_ptr<TRON> location_tron(HsTrust::init_tron(&grfunction, tolerance, 5), [](TRON* tron) {
       HsTrust::finalize_tron(tron);
     });
     if (verbose > 1) {
