@@ -55,6 +55,8 @@ class ComputationArguments {
 
   double l2;
 
+  std::size_t N;
+
   LossType lossType;
 
   std::vector<double> buf, buf2;
@@ -72,10 +74,19 @@ public:
   ComputationArguments(const GumbelRegressionData& _data, const int _foldTarget)
     :
     data(_data), foldTarget(_foldTarget),
-    l2(0.0), lossType(LossType::All),
+    l2(0.0), N(0), lossType(LossType::All),
     buf(_data.nrowX, 0.0), buf2(_data.nrowX, 0.0),
     pw(nullptr), pw0(nullptr), pw1(nullptr)
-  { }
+  {
+    if (foldTarget != 0) {
+      const Rcpp::IntegerVector& foldId(boost::get<Rcpp::IntegerVector>(data.foldId));
+      for(std::size_t i = 0;i < data.nrowX;i++) {
+        if (foldId[i] != foldTarget) N++;
+      }
+    } else {
+      N = data.nrowX;
+    }
+  }
 
   const int get_foldTarget() const {
     return foldTarget;
@@ -91,6 +102,10 @@ public:
 
   const double get_l2() const {
     return l2;
+  }
+
+  const std::size_t get_N() const {
+    return N;
   }
 
   void set_pw(double** _pw) {
@@ -224,7 +239,7 @@ private:
       result += z[i] + std::exp(-z[i]);
     }
     result += z.size() * log_sigma;
-    return result;
+    return result / args.get_N();
   }
 
 };
@@ -281,6 +296,7 @@ private:
       for(std::size_t i = 0;i < z.size();i++) {
         g[0] += z[i] * (std::exp(-z[i]) - 1);
       }
+      g[0] = g[0] / args.get_N();
       return;
     }
     case LossType::Location :
@@ -288,8 +304,9 @@ private:
       const std::vector<double>& enzm1(args.get_enzm1(w, sigma, false));
       std::fill(g, g + data.ncolX, 0);
       Xv::vX_dgCMatrix_numeric_folded(data.X, enzm1, g, data.foldId, args.get_foldTarget(), true);
+      double tmp = sigma * args.get_N();
       for(size_t i = 0;i < data.ncolX;i++) {
-        g[i] = g[i] / sigma;
+        g[i] = g[i] / tmp;
       }
       return;
     }
@@ -301,10 +318,12 @@ private:
       for(std::size_t i = 0;i < z.size();i++) {
         g[0] += z[i] * enzm1[i];
       }
+      g[0] = g[0] / args.get_N();
       std::fill(g1, g1 + data.ncolX, 0);
       Xv::vX_dgCMatrix_numeric_folded(data.X, enzm1, g1, data.foldId, args.get_foldTarget(), true);
+      double tmp = sigma * args.get_N();
       for(size_t i = 0;i < data.ncolX;i++) {
-        g1[i] = g1[i] / sigma;
+        g1[i] = g1[i] / tmp;
       }
       return;
     }
@@ -379,7 +398,7 @@ private :
       }
       std::fill(buf2.begin(), buf2.end(), 0);
       Xv::vX_dgCMatrix_numeric_folded(data.X, buf, buf2, data.foldId, args.get_foldTarget(), true);
-      Hs[0] = H11 * s[0];
+      Hs[0] = H11 * s[0] / args.get_N();
       break;
     }
     case LossType::Location :
@@ -389,7 +408,7 @@ private :
       std::fill(buf.begin(), buf.end(), 0);
       Xv::Xv_dgCMatrix_numeric_folded(data.X, s, buf, data.foldId, args.get_foldTarget(), true);
       buf.resize(z.size());
-      double sigma2 = sigma * sigma;
+      double sigma2 = sigma * sigma * args.get_N();
       for(std::size_t i = 0;i < z.size();i++) {
         buf[i] = buf[i] * (enzm1[i] + 1) / sigma2;
       }
@@ -413,13 +432,14 @@ private :
       double * Hs1 = Hs + 1;
       for(std::size_t i = 0;i < data.ncolX;i++) {
         Hs[0] += s1[i] * buf2[i];
-        Hs1[i] = buf2[i] * s[0];
+        Hs1[i] = buf2[i] * s[0] / args.get_N();
       }
+      Hs[0] = Hs[0] / args.get_N();
       buf.resize(data.nrowX);
       std::fill(buf.begin(), buf.end(), 0);
       Xv::Xv_dgCMatrix_numeric_folded(data.X, s1, buf, data.foldId, args.get_foldTarget(), true);
       buf.resize(z.size());
-      double sigma2 = sigma * sigma;
+      double sigma2 = sigma * sigma * args.get_N();
       for(std::size_t i = 0;i < z.size();i++) {
         // Hnn = enz / sigma^2
         buf[i] = buf[i] * (enzm1[i] + 1) / sigma2;

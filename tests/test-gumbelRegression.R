@@ -25,7 +25,7 @@ test <- function(X, y) {
   w <- c(log(mean(1 / b)), alpha + rnorm(ncol(X), 0, 0.1))
   mu <- X %*% tail(w, -1)
   if (isS4(mu)) mu <- mu@x
-  stopifnot(isTRUE(all.equal(loss(w), - sum(reliaR::dgumbel(y, mu, exp(w[1]), log = TRUE)))))
+  stopifnot(isTRUE(all.equal(loss(w), - mean(reliaR::dgumbel(y, mu, exp(w[1]), log = TRUE)))))
   stopifnot(isTRUE(all.equal(loss(w), loss.cpp(w))))
   stopifnot(isTRUE(all.equal(gradient(w), numDeriv::grad(loss, w))))
   stopifnot(isTRUE(all.equal(gradient(w), gradient.cpp(w))))
@@ -49,3 +49,4 @@ library(Xv)
 test(methods::as(X, "CsparseMatrix"), y)
 test(methods::as(X, "RsparseMatrix"), y)
 test(methods::as(X, "TsparseMatrix"), y)
+

@@ -39,7 +39,7 @@ get.moment <- function(y) {
   force(y)
   function(w) {
     .w <- .extract.w(X, y, w)
-    negloglik <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
+    negloglik <- mean(.w$z + exp(-.w$z) + log(.w$sigma))
     .threshold.correction(negloglik)
   }
 }
@@ -90,8 +90,8 @@ get.loss <- function(X, y, implementation = getOption("gumbelRegression.implemen
     .z <- (as.vector(exp(-.w$z) - 1) %*% X)
     if (isS4(.z)) .z <- .z@x
     result <- c(
-      n + sum(.w$z * (exp(-.w$z) - 1)),
-      .z / .w$sigma
+      1 + mean(.w$z * (exp(-.w$z) - 1)),
+      .z / .w$sigma / n
     )
     result
   }
@@ -126,6 +126,7 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
 .get.Hv.r <- function(X, y) {
   force(X)
   force(y)
+  n <- nrow(X)
   function(w, v) {
     .w <- .extract.w(X, y, w)
     negloglik <- sum(.w$z + exp(-.w$z) + log(.w$sigma))
@@ -143,7 +144,7 @@ get.gradient <- function(X, y, implementation = getOption("gumbelRegression.impl
     result <- c(
       H11 * v[1] + sum(H1n * v1),
       H1n * v[1] + XXv1
-    )
+    ) / n
     result
   }
 }

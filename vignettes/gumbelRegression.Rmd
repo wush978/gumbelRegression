@@ -19,12 +19,12 @@ The implemented Gumbel Regression is:
 
 $$y \approx Gumbel(\mu = x_i^T \beta, \sigma = e^s)$$
 
-Therefore, the loss function which is the negative log likelihood function:
+Therefore, the loss function which is the average of the negative log likelihood function:
 
 $$\begin{eqnarray}
-L(s, \beta) &=& \sum_{i=1}^n{z_i + e^{-z_i} + s} \\
-&=& ns + \sum_{i=1}^n{z_i + e^{-z_i}} \\
-&=& ns + \sum_{i=1}^n L'(z_i)
+L(s, \beta) &=& \frac{1}{n}\sum_{i=1}^n{z_i + e^{-z_i} + s} \\
+&=& s + \frac{1}{n}\sum_{i=1}^n{z_i + e^{-z_i}} \\
+&=& s + \frac{1}{n}\sum_{i=1}^n L'(z_i)
 \end{eqnarray}$$
 
 where:
@@ -52,30 +52,30 @@ $$\begin{eqnarray}
 ## Gradient
 
 $$\begin{eqnarray}
-\frac{\partial}{\partial s}L &=& n + \sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial s}} \\ 
-&=& n + \sum_{i=1}^n{(1 - e^{-z_i}) \times (-z_i)}
-&=& n + \sum_{i=1}^n{z_i e^{-z_i} - z_i}
+\frac{\partial}{\partial s}L &=& 1 + \frac{1}{n}\sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial s}} \\ 
+&=& 1 + \frac{1}{n}\sum_{i=1}^n{(1 - e^{-z_i}) \times (-z_i)} \\
+&=& 1 + \frac{1}{n}\sum_{i=1}^n{z_i e^{-z_i} - z_i}
 \end{eqnarray}$$
 
 $$\begin{eqnarray}
-\frac{\partial}{\partial \beta}L &=& \sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial \beta}} \\ 
-&=& \sum_{i=1}^n {(1 - e^{-z_i}) \times \frac{-x_i}{e^s}} \\
-&=& \sum_{i=1}^n {\frac{e^{-z_i} - 1}{e^s} x_i}
+\frac{\partial}{\partial \beta}L &=& \frac{1}{n}\sum_{i=1}^n {\frac{\partial L'(z_i)}{\partial z_i} \times \frac{\partial z_i}{\partial \beta}} \\ 
+&=& \frac{1}{n}\sum_{i=1}^n {(1 - e^{-z_i}) \times \frac{-x_i}{e^s}} \\
+&=& \frac{1}{n}\sum_{i=1}^n {\frac{e^{-z_i} - 1}{e^s} x_i}
 \end{eqnarray}$$
 
 ## Hessian
 
 $$\begin{eqnarray}
-\frac{\partial^2}{\partial s^2}L &=& \sum_{i=1}^n{\frac{\partial}{\partial s}(z_i e^{-z_i} - z_i)} \\
-&=& \sum_{i=1}^n{ z_i^2 e^{-z_i} - z_i e^{-z_i} + z_i}
+\frac{\partial^2}{\partial s^2}L &=& \frac{1}{n}\sum_{i=1}^n{\frac{\partial}{\partial s}(z_i e^{-z_i} - z_i)} \\
+&=& \frac{1}{n}\sum_{i=1}^n{ z_i^2 e^{-z_i} - z_i e^{-z_i} + z_i}
 \end{eqnarray}$$
 
 $$\begin{eqnarray}
-\frac{\partial^2}{\partial s \partial \beta}L &=& \sum_{i=1}^n{\frac{\partial}{\partial \beta}(z_i e^{-z_i} - z_i)} \\
-&=& \sum_{i=1}^n {\frac{z_i e^{-z_i} - e^{-z_i} +1}{e^s} x_i}
+\frac{\partial^2}{\partial s \partial \beta}L &=& \frac{1}{n}\sum_{i=1}^n{\frac{\partial}{\partial \beta}(z_i e^{-z_i} - z_i)} \\
+&=& \frac{1}{n}\sum_{i=1}^n {\frac{z_i e^{-z_i} - e^{-z_i} +1}{e^s} x_i}
 \end{eqnarray}$$
 
 $$\begin{eqnarray}
-\frac{\partial^2}{\partial \beta^2}L &=& \sum_{i=1}^n{\frac{\partial}{\partial \beta}(\frac{e^{-z_i} - 1}{e^s} x_i)} \\
-&=& \sum_{i=1}^n {\frac{e^{-z_i}}{e^{2s}} x_i x_i^T}
+\frac{\partial^2}{\partial \beta^2}L &=& \frac{1}{n}\sum_{i=1}^n{\frac{\partial}{\partial \beta}(\frac{e^{-z_i} - 1}{e^s} x_i)} \\
+&=& \frac{1}{n}\sum_{i=1}^n {\frac{e^{-z_i}}{e^{2s}} x_i x_i^T}
 \end{eqnarray}$$
