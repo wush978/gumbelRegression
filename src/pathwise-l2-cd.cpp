@@ -237,8 +237,8 @@ public:
         train(foldTarget);
         cvPredict(foldTarget);
       } catch (std::exception& e) {
-        std::cerr << "(" << foldTarget << ") An error occurred." << std::endl;
-        throw e;
+        std::cerr << "(" << foldTarget << ") An error occurred. The message is: " << e.what() << std::endl;
+        throw;
       }
     }
   }
