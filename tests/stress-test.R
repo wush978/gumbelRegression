@@ -16,5 +16,5 @@ X <- as(X, "CsparseMatrix")
 
 fold.id <- get.fold.id(n, fold.size <- 2)
 lambda.seq <- seq(1, -4, length.out = 100)
-options(gumbelRegression.parallel = TRUE, gumbelRegression.verbose = FALSE)
-result.cpp <- gumbelRegression::gumbelRegression(X, y, fold.id, lambda.seq = lambda.seq, implementation = "cpp")
+options(gumbelRegression.parallel = TRUE, gumbelRegression.verbose = 3L)
+result.cpp <- gumbelRegression::gumbelRegression(X, y, fold.id, lambda.seq = (10^lambda.seq), implementation = "cpp")
