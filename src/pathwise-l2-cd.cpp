@@ -1,3 +1,4 @@
+#include <fstream>
 #include <Rcpp.h>
 #include <RcppParallel.h>
 #include <pathwise-l2-cd.h>
@@ -124,6 +125,12 @@ public:
 
   // This is running in a thread
   void train(std::size_t foldTarget) {
+    std::unique_ptr<std::iostream> progress_logger;
+    if (verbose > 2) {
+      std::stringstream progress_logger_path;
+      progress_logger_path << ".gumbelRegression-pathwise-l2-cd." << foldTarget << ".log";
+      progress_logger.reset(new std::fstream(progress_logger_path.str(), std::iostream::out));
+    }
     auto verbose_printer = [&foldTarget](const char* s) {
       std::cout << "(" << foldTarget << ") " << s << std::endl;
     };
@@ -163,6 +170,7 @@ public:
     for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
       double lambda = lambdaSeq[lambda_i];
       if (verbose > 0) std::cout << "(" << foldTarget << ") lambda: " << lambda << std::endl;
+      if (verbose > 2) *progress_logger << "lambda: " << lambda << std::endl;
       is_converge = false;
       grfunction.args.set_l2(lambda);
       w2[0] = log_sigma(0);
@@ -171,6 +179,10 @@ public:
         double current_log_sigma, loss_result;
         grfunction.args.set_loss_type(GumbelRegression::LossType::Scale);
         // optimizing scale parameter
+        if (verbose > 2) {
+          *progress_logger << "optimizing sigma... ";
+          progress_logger->flush();
+        }
         do {
           current_log_sigma = log_sigma(0);
           dlib::find_min_box_constrained(
@@ -194,13 +206,30 @@ public:
             ", f: " << loss_result <<
             ", |g|: " << std::abs(mg1(0)) << std::endl;
         }
+        if (verbose > 2) {
+          *progress_logger << "log(sigma): " << log_sigma(0) <<
+            ", f: " << loss_result <<
+            ", |g|: " << std::abs(mg1(0)) << std::endl;
+        }
         last_log_sigma = w2[0];
         w2[0] = log_sigma(0);
         // optimizing location
         grfunction.args.set_loss_type(GumbelRegression::LossType::Location);
+        if (verbose > 2) {
+          *progress_logger << "optimizing location parameters... ";
+          progress_logger->flush();
+        }
         HsTrust::tron(location_tron.get(), w1.begin());
+        loss_result = grfunction.fun(w1.begin());
+        grfunction.grad(w1.begin(), pmg2);
         if (verbose > 1) {
           std::cout << "(" << foldTarget << " location) f: " << loss_result <<
+            ", |g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
+              return left + right * right;
+            })) << std::endl;
+        }
+        if (verbose > 2) {
+          *progress_logger << "f: " << loss_result <<
             ", |g|: " << std::sqrt(std::accumulate(mg2.begin(), mg2.end(), 0.0, [](const double left, const double right) {
               return left + right * right;
             })) << std::endl;
@@ -224,6 +253,9 @@ public:
         is_converge = distance < cd_threshold;
         if (is_converge) break;
         last_loss = current_loss;
+      }
+      if (verbose > 2) {
+        *progress_logger << "done!" << std::endl;
       }
       double *presult = &gumbelCoef(0, lambda_i);
       presult[0] = log_sigma(0);
