@@ -1,4 +1,5 @@
 #include <fstream>
+#include <boost/process/environment.hpp>
 #include <Rcpp.h>
 #include <RcppParallel.h>
 #include <pathwise-l2-cd.h>
@@ -128,7 +129,8 @@ public:
     std::unique_ptr<std::iostream> progress_logger;
     if (verbose > 2) {
       std::stringstream progress_logger_path;
-      progress_logger_path << ".gumbelRegression-pathwise-l2-cd." << foldTarget << ".log";
+      progress_logger_path << ".gumbelRegression-pathwise-l2-cd." <<
+        boost::this_process::get_id() << "." << foldTarget << ".log";
       progress_logger.reset(new std::fstream(progress_logger_path.str(), std::iostream::out));
     }
     auto verbose_printer = [&foldTarget](const char* s) {
