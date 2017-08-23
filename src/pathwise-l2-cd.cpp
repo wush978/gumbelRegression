@@ -1,4 +1,4 @@
-#include <cmath>
+#include <ctgmath>
 #include <fstream>
 #include <boost/process/environment.hpp>
 #include <Rcpp.h>
@@ -28,7 +28,7 @@ public:
 
   virtual double fun(double *w) {
     double result = loss(w);
-    if (isinf(result)) throw std::runtime_error("infinite output");
+    if (std::isinf(result)) throw std::runtime_error("infinite output");
     return result;
   }
 
