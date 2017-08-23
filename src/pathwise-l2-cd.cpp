@@ -214,6 +214,15 @@ public:
               log_sigma(0) = current_log_sigma;
             }
             else throw e;
+          } catch (dlib::error& e) {
+            std::cout << "(" << foldTarget << " scale) got dlib error: " << e.what() << std::endl;
+            if (search_sigma_once) {
+              std::cout << "(" << foldTarget << " scale) use the latest sigma" << std::endl;
+              log_sigma(0) = current_log_sigma;
+            }
+            else {
+              throw e;
+            }
           }
         } while (std::abs(log_sigma(0) - current_log_sigma) > tolerance);
         if (verbose > 1) {
