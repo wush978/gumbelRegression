@@ -1,3 +1,4 @@
+#include <cmath>
 #include <fstream>
 #include <boost/process/environment.hpp>
 #include <Rcpp.h>
@@ -26,7 +27,9 @@ public:
   virtual ~GumbelRegressionFunction() { }
 
   virtual double fun(double *w) {
-    return loss(w);
+    double result = loss(w);
+    if (isinf(result)) throw std::runtime_error("infinite output");
+    return result;
   }
 
   virtual void grad(const double *w, double *g) {
@@ -185,23 +188,33 @@ public:
           *progress_logger << "optimizing sigma... ";
           progress_logger->flush();
         }
+        bool search_sigma_once = false;
         do {
           current_log_sigma = log_sigma(0);
-          dlib::find_min_box_constrained(
-            dlib::bfgs_search_strategy(),
-            dlib::objective_delta_stop_strategy(tolerance),
-            [&](const DLibVector& log_sigma) {
-              loss_result = grfunction.loss(log_sigma.begin());
-              return loss_result;
-            },
-            [&](const DLibVector& log_sigma) {
-              grfunction.grad(log_sigma.begin(), pmg1);
-              return mg1;
-            },
-            log_sigma,
-            log_sigma(0) - 1,
-            log_sigma(0) + 1
-          );
+          try {
+            dlib::find_min_box_constrained(
+              dlib::bfgs_search_strategy(),
+              dlib::objective_delta_stop_strategy(tolerance),
+              [&](const DLibVector& log_sigma) {
+                loss_result = grfunction.loss(log_sigma.begin());
+                return loss_result;
+              },
+              [&](const DLibVector& log_sigma) {
+                grfunction.grad(log_sigma.begin(), pmg1);
+                return mg1;
+              },
+              log_sigma,
+              log_sigma(0) - 1,
+              log_sigma(0) + 1
+            );
+            search_sigma_once = true;
+          } catch (std::runtime_error& e) {
+            std::cout << "(" << foldTarget << " scale) got infinite result" << std::endl;
+            if (search_sigma_once) {
+              log_sigma(0) = current_log_sigma;
+            }
+            else throw e;
+          }
         } while (std::abs(log_sigma(0) - current_log_sigma) > tolerance);
         if (verbose > 1) {
           std::cout << "(" << foldTarget << " scale) log(sigma): " << log_sigma(0) <<
