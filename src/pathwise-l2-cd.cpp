@@ -188,7 +188,7 @@ public:
           *progress_logger << "optimizing sigma... ";
           progress_logger->flush();
         }
-        bool non_finite_error_once = false;
+        bool successfully_search_once = false;
         do {
           current_log_sigma = log_sigma(0);
           try {
@@ -207,16 +207,24 @@ public:
               log_sigma(0) - 1,
               log_sigma(0) + 1
             );
+            successfully_search_once = true;
           } catch (std::runtime_error& e) {
             std::cout << "(" << foldTarget << " scale) got infinite result" << std::endl;
-            log_sigma(0) = current_log_sigma + 2;
-            non_finite_error_once = true;
+            if (successfully_search_once) {
+              log_sigma(0) = current_log_sigma;
+              break;
+            } else {
+              log_sigma(0) = current_log_sigma + 2;
+            }
           } catch (dlib::error& e) {
             std::cout << "(" << foldTarget << " scale) got dlib error: " << e.what() << std::endl;
-            log_sigma(0) = current_log_sigma + 2;
-            non_finite_error_once = true;
+            if (successfully_search_once) {
+              log_sigma(0) = current_log_sigma;
+              break;
+            } else {
+              log_sigma(0) = current_log_sigma + 2;
+            }
           }
-          if (non_finite_error_once) break;
         } while (std::abs(log_sigma(0) - current_log_sigma) > tolerance);
         if (verbose > 1) {
           std::cout << "(" << foldTarget << " scale) log(sigma): " << log_sigma(0) <<
