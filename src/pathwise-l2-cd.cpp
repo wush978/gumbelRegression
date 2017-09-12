@@ -209,7 +209,8 @@ public:
             );
             successfully_search_once = true;
           } catch (std::runtime_error& e) {
-            std::cout << "(" << foldTarget << " scale) got infinite result" << std::endl;
+            std::cout << "(" << foldTarget << " scale) got infinite result";
+            std::cout << " at sigma: " << log_sigma(0) << std::endl;
             if (successfully_search_once) {
               log_sigma(0) = current_log_sigma;
               break;
@@ -217,7 +218,8 @@ public:
               log_sigma(0) = current_log_sigma + 2;
             }
           } catch (dlib::error& e) {
-            std::cout << "(" << foldTarget << " scale) got dlib error: " << e.what() << std::endl;
+            std::cout << "(" << foldTarget << " scale) got dlib error: " << e.what();
+            std::cout << " at sigma: " << log_sigma(0) << std::endl;
             if (successfully_search_once) {
               log_sigma(0) = current_log_sigma;
               break;
