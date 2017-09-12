@@ -218,8 +218,9 @@ public:
               log_sigma(0) = current_log_sigma + 2;
             }
           } catch (dlib::error& e) {
+            double current_loss = grfunction.loss(log_sigma.begin());
             std::cout << "(" << foldTarget << " scale) got dlib error: " << e.what();
-            std::cout << " ( f(" << log_sigma(0) << ") = " << grfunction.loss(log_sigma.begin()) << ")" << std::endl;
+            std::cout << " ( f(" << log_sigma(0) << ", " << w1(0) << ") = " << current_loss << ")" << std::endl;
             if (successfully_search_once) {
               log_sigma(0) = current_log_sigma;
               break;
