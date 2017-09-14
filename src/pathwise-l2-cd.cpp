@@ -148,6 +148,7 @@ public:
     DLibVector log_sigma(1);
     log_sigma(0) = init_log_sigma;
     DLibVector w1(data.ncolX);
+    std::fill(w1.begin(), w1.end(), 0.0);
     w1(0) = init_intercept;
     std::vector<double> w2(data.ncolX + 1, 0.0);
     // compute reference loss
