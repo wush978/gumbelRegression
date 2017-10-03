@@ -1,7 +1,7 @@
 Package: gumbelRegression
 Type: Package
 Title: Implement Functions for Fitting Gumbel Regression
-Version: 0.1.7.4
+Version: 0.1.7.5
 Author: Wush Wu
 Maintainer: Wush Wu <wush978@gmail.com>
 Description: Implement Functions for Fitting Gumbel Regression
