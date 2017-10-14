@@ -58,7 +58,6 @@ public:
 using namespace Rcpp;
 
 typedef Rcpp::NumericMatrix gumbelCoefType;
-typedef Rcpp::NumericVector cvMseType;
 
 class FoldTask : public RcppParallel::Worker {
 
@@ -69,8 +68,6 @@ class FoldTask : public RcppParallel::Worker {
   const double tolerance;
 
   std::vector< gumbelCoefType >& gumbelCoefList;
-
-  std::vector< cvMseType >& cvMseList;
 
   const int nfold;
 
@@ -87,45 +84,43 @@ public:
     const NumericVector& _lambdaSeq,
     const double _tolerance,
     std::vector< gumbelCoefType >& _gumbelCoefList,
-    std::vector< cvMseType >& _cvMseList,
     int _nfold,
     double _init_log_sigma,
     double _init_intercept,
     int _verbose) :
   data(_data), lambdaSeq(_lambdaSeq), tolerance(_tolerance),
-  gumbelCoefList(_gumbelCoefList), cvMseList(_cvMseList),
+  gumbelCoefList(_gumbelCoefList),
   nfold(_nfold), init_log_sigma(_init_log_sigma), init_intercept(_init_intercept), verbose(_verbose)
   { }
 
   ~FoldTask() { }
 
   // This is running in a thread
-  void cvPredict(std::size_t foldTarget) {
-    if (foldTarget == nfold + 1) return;
-    auto& cvMse(cvMseList[foldTarget - 1]);
-    auto& gumbelCoef(gumbelCoefList[foldTarget - 1]);
-    std::vector<double> mu(data.nrowX, 0.0);
-    for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
-      const double *w = &gumbelCoef(0, lambda_i);
-      const double *w1 = w + 1;
-      // Xv::Xv_dgCMatrix_numeric_folded(data.X, pw1, buf, data.foldId, foldTarget, true);
-      mu.resize(data.nrowX);
-      std::fill(mu.begin(), mu.end(), 0.0);
-      auto muSize = Xv::Xv_dgCMatrix_numeric_folded(data.X, w1, mu, data.foldId, foldTarget, false);
-      mu.resize(muSize);
-      double& result(cvMse[lambda_i]);
-      result = 0.0;
-      std::size_t index = 0;
-      const IntegerVector& foldId(boost::get<IntegerVector>(data.foldId));
-      const double adjustment = GumbelRegression::EulerMascheroniConstant() * std::exp(w[0]);
-      for(std::size_t yi = 0;yi < data.y.size();yi++) {
-        if (foldId[yi] != foldTarget) continue;
-        double error = (mu[index] + adjustment - data.y[yi]);
-        result += error * error;
-        index++;
-      }
-    }
-  }
+  // void cvPredict(std::size_t foldTarget) {
+  //   if (foldTarget == nfold + 1) return;
+  //   auto& gumbelCoef(gumbelCoefList[foldTarget - 1]);
+  //   std::vector<double> mu(data.nrowX, 0.0);
+  //   for(std::size_t lambda_i = 0;lambda_i < lambdaSeq.size();lambda_i++) {
+  //     const double *w = &gumbelCoef(0, lambda_i);
+  //     const double *w1 = w + 1;
+  //     // Xv::Xv_dgCMatrix_numeric_folded(data.X, pw1, buf, data.foldId, foldTarget, true);
+  //     mu.resize(data.nrowX);
+  //     std::fill(mu.begin(), mu.end(), 0.0);
+  //     auto muSize = Xv::Xv_dgCMatrix_numeric_folded(data.X, w1, mu, data.foldId, foldTarget, false);
+  //     mu.resize(muSize);
+  //     double& result(cvMse[lambda_i]);
+  //     result = 0.0;
+  //     std::size_t index = 0;
+  //     const IntegerVector& foldId(boost::get<IntegerVector>(data.foldId));
+  //     const double adjustment = GumbelRegression::EulerMascheroniConstant() * std::exp(w[0]);
+  //     for(std::size_t yi = 0;yi < data.y.size();yi++) {
+  //       if (foldId[yi] != foldTarget) continue;
+  //       double error = (mu[index] + adjustment - data.y[yi]);
+  //       result += error * error;
+  //       index++;
+  //     }
+  //   }
+  // }
 
   // This is running in a thread
   void train(std::size_t foldTarget) {
@@ -248,7 +243,38 @@ public:
           *progress_logger << "optimizing location parameters... ";
           progress_logger->flush();
         }
-        HsTrust::tron(location_tron.get(), w1.begin());
+        // HsTrust::tron(location_tron.get(), w1.begin());
+        if (std::abs(last_log_sigma - w2[0]) > 0.5) {
+          dlib::find_min(
+            dlib::lbfgs_search_strategy(30),
+            dlib::objective_delta_stop_strategy(tolerance, 10).be_verbose(),
+            [&](const DLibVector& mw1) {
+              loss_result = grfunction.loss(mw1.begin());
+              return loss_result;
+            },
+            [&](const DLibVector& mw1) {
+              grfunction.grad(mw1.begin(), pmg2);
+              return mg2;
+            },
+            w1,
+            -1
+          );
+        } else {
+          dlib::find_min(
+            dlib::lbfgs_search_strategy(30),
+            dlib::objective_delta_stop_strategy(tolerance).be_verbose(),
+            [&](const DLibVector& mw1) {
+              loss_result = grfunction.loss(mw1.begin());
+              return loss_result;
+            },
+            [&](const DLibVector& mw1) {
+              grfunction.grad(mw1.begin(), pmg2);
+              return mg2;
+            },
+            w1,
+            -1
+          );
+        }
         loss_result = grfunction.fun(w1.begin());
         grfunction.grad(w1.begin(), pmg2);
         if (verbose > 1) {
@@ -296,7 +322,7 @@ public:
     for(std::size_t foldTarget = begin;foldTarget < end;foldTarget++) {
       try {
         train(foldTarget);
-        cvPredict(foldTarget);
+        // cvPredict(foldTarget);
       } catch (std::exception& e) {
         std::cerr << "(" << foldTarget << ") An error occurred. The message is: " << e.what() << std::endl;
         throw;
@@ -316,14 +342,12 @@ static int ncol(const S4& X) {
 List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVector lambdaSeq, double tolerance, double init_log_sigma, double init_intercept, int verbose = 0, bool parallel = true) {
   int nfold = Rcpp::max(foldId);
   std::vector< gumbelCoefType > gumbelCoefList;
-  std::vector< cvMseType > cvMseList;
   for(int i = 0;i < nfold;i++) {
     gumbelCoefList.push_back(gumbelCoefType(NumericMatrix(1 + ncol(X), lambdaSeq.size())));
-    cvMseList.push_back(cvMseType(NumericVector(lambdaSeq.size())));
   }
   gumbelCoefList.push_back(gumbelCoefType(NumericMatrix(1 + ncol(X), lambdaSeq.size())));
   GumbelRegression::GumbelRegressionData data(X, y, foldId);
-  FoldTask foldTask(data, lambdaSeq, tolerance, gumbelCoefList, cvMseList, nfold, init_log_sigma, init_intercept, verbose);
+  FoldTask foldTask(data, lambdaSeq, tolerance, gumbelCoefList, nfold, init_log_sigma, init_intercept, verbose);
   HsTrust::init();
   if (parallel) {
     std::cout << "Fit gumbel regression in parallel mode" << std::endl;
@@ -335,12 +359,8 @@ List gumbelRegressionCpp(S4 X, NumericVector y, IntegerVector foldId, NumericVec
     }
   }
   List result(nfold + 1);
-  for(int i = 0;i < nfold;i++) {
-    result[i] = List::create(
-      Named("coef") = gumbelCoefList[i],
-      Named("cv.mse") = cvMseList[i]
-    );
+  for(int i = 0;i < nfold + 1;i++) {
+    result[i] = List::create(Named("coef") = gumbelCoefList[i]);
   }
-  result[nfold] = List::create(Named("coef") = gumbelCoefList[nfold]);
   return result;
 }
