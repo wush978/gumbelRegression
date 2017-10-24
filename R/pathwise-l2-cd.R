@@ -189,7 +189,24 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
   .moment <- get.moment(y)
-  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
+  result <- .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
+  cat("Training is done! Evaluating cross validation indexes...\n")
+  log.sigma <- sapply(result$coef, function(x) x[1,])
+  result$cv.loglik <- sapply(seq_along(lambda.seq), function(i) {
+    sigma <- exp(head(log.sigma[i,], -1))[fold.id]
+    z <- (train$y - result$fit.preval[,i]) / sigma
+    mean(-(z + exp(-z)) - log(sigma))
+  })
+  # mse
+  result$cv.mse <- apply(result$fit.preval, 2, function(x) {
+    mean((train$y - x)^2)
+  })
+  # theoretical adjusted mse
+  result$cv.tamse <- sapply(seq_along(lambda.seq), function(i) {
+    sigma <- exp(head(log.sigma[i,], -1))[fold.id]
+    mean((train$y - (result$fit.preval[,i] - digamma(1) * sigma))^2)
+  })
+  result
 }
 
 #'@export
