@@ -172,7 +172,7 @@ public:
     std::vector<double> stop_strategy_gradient_buffer(1 + data.ncolX, 0.0);
 #endif
     double *pmg1 = mg1.begin(), *pmg2 = mg2.begin();
-    std::shared_ptr<TRON> location_tron(HsTrust::init_tron(&grfunction, tolerance, 5), [](TRON* tron) {
+    std::shared_ptr<TRON> location_tron(HsTrust::init_tron(&grfunction, tolerance, 100), [](TRON* tron) {
       HsTrust::finalize_tron(tron);
     });
     if (verbose > 1) {
