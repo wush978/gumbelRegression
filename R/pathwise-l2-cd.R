@@ -121,7 +121,6 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
           #   ncol(cv.train$X)
           # )
           # start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
-          browser()
           start[-1] <- optim(
             tail(start, -1),
             fn = get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
@@ -190,15 +189,10 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
   .moment <- get.moment(y)
-  result <- .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
-  result <- lapply(result, function(x) {
-    p <- apply(x$coef, 2, function(coef) predict.gumbel(coef, X))
-    r <- lapply(p, lapply, function(.p) y - .p)
-    list(coef = x$coef, p.train = p, residual.train = r)
-  })
-  result
+  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
 }
 
+#'@export
 predict.gumbel <- function(coef, X) {
   result = list(origin = X %*% tail(coef, -1))
   result$adjusted <- result$origin - digamma(1) * exp(coef[1])

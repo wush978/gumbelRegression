@@ -30,7 +30,7 @@ for(target in 1:fold.size) {
     pred <- mu - digamma(1) * exp(w[1])
     e <- (y[fold.id == target] - pred)
     stopifnot(isTRUE(all.equal(result[[target]]$cv.mse[i], sum(e^2))))
-
+    print(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]))
     stopifnot(abs(1 - result.cpp[[target]]$cv.mse[i] / result[[target]]$cv.mse[i]) < 1e-2)
   }
 }
