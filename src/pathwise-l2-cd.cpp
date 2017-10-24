@@ -7,6 +7,7 @@
 #include <HsTrust.h>
 #include "gumbel_optimization_stop_strategy.h"
 #include "prefixstream.h"
+#include "date.h"
 
 // #define USE_OBJECT_DELTA_STOP_STRATEGY
 #define USE_GRADIENT_NORM_STOP_STRATEGY
@@ -138,11 +139,14 @@ public:
         boost::this_process::get_id() << "." << foldTarget << ".log";
       progress_logger.reset(new std::fstream(progress_logger_path.str(), std::iostream::out));
     }
-    // auto verbose_printer = [&foldTarget](const char* s) {
-    //   std::cout << "(" << foldTarget << ") " << s << std::endl;
-    // };
-    // auto silent_printer = [](const char* s) {
-    // };
+    std::string timeStringBuffer;
+    auto getCurrentTimeStringToTimeStringBuffer = [&timeStringBuffer]() {
+      using namespace date;
+      using namespace std::chrono;
+      std::stringstream ss;
+      ss << system_clock::now();
+      timeStringBuffer = ss.str();
+    };
     auto& gumbelCoef(gumbelCoefList[foldTarget - 1]);
     bool is_converge;
     GumbelRegressionFunction grfunction(data, (foldTarget == nfold + 1 ? 0 : foldTarget));
@@ -188,7 +192,10 @@ public:
       prefixss << "(" << foldTarget << "-" << lambda_i << ") ";
       GumbelRegression::oprefixstream ost(prefixss.str(), std::cout);
       double lambda = lambdaSeq[lambda_i];
-      if (verbose > 0) std::cout << "(" << foldTarget << "-" << lambda_i << ") lambda: " << lambda << std::endl;
+      if (verbose > 0) {
+        getCurrentTimeStringToTimeStringBuffer();
+        std::cout << "(" << foldTarget << "-" << lambda_i << ") " << timeStringBuffer << " lambda: " << lambda << std::endl;
+      }
       if (verbose > 2) *progress_logger << "lambda: " << lambda << std::endl;
       is_converge = false;
       grfunction.args.set_l2(lambda);
