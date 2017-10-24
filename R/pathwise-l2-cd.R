@@ -113,15 +113,22 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
             method = "BFGS",
             control = list(trace = 0)
           )$par
-          kernel <- new(
-            HsTrust::HsTrust,
-            get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            get.Hv(cv.train$X, cv.train$y, l2) %>% get.projection.Hv(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            ncol(cv.train$X)
-          )
-          start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
-          if (abs(old.start - start) %>% max() < 1e-4) break
+          # kernel <- new(
+          #   HsTrust::HsTrust,
+          #   get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   get.Hv(cv.train$X, cv.train$y, l2) %>% get.projection.Hv(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   ncol(cv.train$X)
+          # )
+          # start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
+          start[-1] <- optim(
+            tail(start, -1),
+            fn = get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+            gr = get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+            method = "L-BFGS-B",
+            control = list(trace = 1, maxit = 100)
+          )$par
+          if (abs(old.start - start) %>% max() < tolerance) break
         }
         cv.mse[i] <- .mse(cv.test$y, cv.test$X %*% tail(start, -1) - digamma(1) * exp(start[1]))
         gumbel.coef[,i] <- start
@@ -147,14 +154,21 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
             method = "BFGS",
             control = list(trace = 0)
           )$par
-          kernel <- new(
-            HsTrust,
-            get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            get.Hv(cv.train$X, cv.train$y, l2) %>% get.projection.Hv(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
-            ncol(cv.train$X)
-          )
-          start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
+          # kernel <- new(
+          #   HsTrust,
+          #   get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   get.Hv(cv.train$X, cv.train$y, l2) %>% get.projection.Hv(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+          #   ncol(cv.train$X)
+          # )
+          # start[-1] <- kernel$tron_with_begin(tolerance, FALSE, tail(start, -1))
+          start[-1] <- optim(
+            tail(start, -1),
+            fn = get.f(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+            gr = get.g(cv.train$X, cv.train$y, l2) %>% get.projection(start, seq(from = 2, by = 1, length.out = ncol(cv.train$X))),
+            method = "L-BFGS-B",
+            control = list(trace = 1, maxit = 100)
+          )$par
           if (abs(old.start - start) %>% max() < tolerance) break
         }
         gumbel.coef[,i] <- start
@@ -175,5 +189,29 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   stopifnot(nrow(X) == length(y))
   stopifnot(diff(lambda.seq) < 0)
   .moment <- get.moment(y)
-  .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
+  result <- .gumbelRegression.cpp.internal(X, y, fold.id, lambda.seq, tolerance, log(.moment$sigma), .moment$mu, verbose = getOption("gumbelRegression.verbose", 0L), parallel = getOption("gumbelRegression.parallel", TRUE))
+  cat("Training is done! Evaluating cross validation indexes...\n")
+  log.sigma <- sapply(result$coef, function(x) x[1,])
+  result$cv.loglik <- sapply(seq_along(lambda.seq), function(i) {
+    sigma <- exp(head(log.sigma[i,], -1))[fold.id]
+    z <- (train$y - result$fit.preval[,i]) / sigma
+    mean(-(z + exp(-z)) - log(sigma))
+  })
+  # mse
+  result$cv.mse <- apply(result$fit.preval, 2, function(x) {
+    mean((train$y - x)^2)
+  })
+  # theoretical adjusted mse
+  result$cv.tamse <- sapply(seq_along(lambda.seq), function(i) {
+    sigma <- exp(head(log.sigma[i,], -1))[fold.id]
+    mean((train$y - (result$fit.preval[,i] - digamma(1) * sigma))^2)
+  })
+  result
+}
+
+#'@export
+predict.gumbel <- function(coef, X) {
+  result = list(origin = X %*% tail(coef, -1))
+  result$adjusted <- result$origin - digamma(1) * exp(coef[1])
+  result
 }
