@@ -14,4 +14,3 @@ Suggests: reliaR, Deriv, numDeriv, knitr, rmarkdown, Xv, magrittr, parallel
 VignetteBuilder: knitr
 LinkingTo: Rcpp, Xv, RcppParallel, BH, dlib, HsTrust
 SystemRequirements: C++11, GNU make, libboost-system-dev
-Remotes: wush978/Xv, wush978/bh, wush978/HsTrust
