@@ -194,7 +194,7 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   log.sigma <- sapply(result$coef, function(x) x[1,])
   result$cv.loglik <- sapply(seq_along(lambda.seq), function(i) {
     sigma <- exp(head(log.sigma[i,], -1))[fold.id]
-    z <- (train$y - result$fit.preval[,i]) / sigma
+    z <- (y - result$fit.preval[,i]) / sigma
     mean(-(z + exp(-z)) - log(sigma))
   })
   # mse
