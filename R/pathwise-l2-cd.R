@@ -199,12 +199,12 @@ gumbelRegression <- function(X, y, fold.id, lambda.seq = 10^seq(1, -4, length.ou
   })
   # mse
   result$cv.mse <- apply(result$fit.preval, 2, function(x) {
-    mean((train$y - x)^2)
+    mean((y - x)^2)
   })
   # theoretical adjusted mse
   result$cv.tamse <- sapply(seq_along(lambda.seq), function(i) {
     sigma <- exp(head(log.sigma[i,], -1))[fold.id]
-    mean((train$y - (result$fit.preval[,i] - digamma(1) * sigma))^2)
+    mean((y - (result$fit.preval[,i] - digamma(1) * sigma))^2)
   })
   result
 }
